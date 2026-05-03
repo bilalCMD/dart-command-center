@@ -1,0 +1,71 @@
+{
+  "name": "dart-electron",
+  "version": "1.0.0",
+  "description": "Dart Command Center Desktop App",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win --x64"
+  },
+  "build": {
+    "appId": "io.dartmarketing.commandcenter",
+    "productName": "Dart Command Center",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Dart Command Center",
+      "runAfterFinish": true
+    },
+    "extraResources": [
+      {
+        "from": "../.next",
+        "to": "app/.next"
+      },
+      {
+        "from": "../node_modules",
+        "to": "app/node_modules"
+      },
+      {
+        "from": "../package.json",
+        "to": "app/package.json"
+      },
+      {
+        "from": "../next.config.js",
+        "to": "app/next.config.js"
+      },
+      {
+        "from": "../.env",
+        "to": "app/.env"
+      },
+      {
+        "from": "../prisma",
+        "to": "app/prisma"
+      }
+    ],
+    "files": [
+      "main.js",
+      "preload.js",
+      "tracker/**/*"
+    ]
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "license": "ISC",
+  "type": "commonjs"
+}

@@ -1,0 +1,393 @@
+// Dart Command Center — Database Schema
+// Stack: PostgreSQL via Supabase
+// ORM: Prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ═══════════════════════════════════════
+// AUTH & USERS
+// ═══════════════════════════════════════
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String?
+  name          String
+  role          Role      @default(MEMBER)
+  avatar        String?
+  jobTitle      String?
+  division      String?
+  shift         String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+
+  // Relations
+  clockEvents       ClockEvent[]
+  activityLogs      ActivityLog[]
+  leaveBalances     LeaveBalance[]
+  leaveRequests     LeaveRequest[]
+  leaveApprovals    LeaveRequest[]  @relation("approver")
+  eodReports        EodReport[]
+  kpiAssignments    KpiAssignment[]
+  kpiLogs           KpiLog[]
+  evaluationsGiven  Evaluation[]    @relation("evaluator")
+  evaluationsRecvd  Evaluation[]    @relation("evaluatee")
+  badgesEarned      UserBadge[]
+  loginLogs         LoginLog[]
+  appActivities     AppActivity[]
+  idleLogs          IdleLog[]
+
+  @@index([email])
+  @@index([role])
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+// ═══════════════════════════════════════
+// TIME TRACKING
+// ═══════════════════════════════════════
+
+model ClockEvent {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id])
+  type      ClockEventType
+  timestamp DateTime       @default(now())
+  note      String?
+
+  @@index([userId, timestamp])
+}
+
+enum ClockEventType {
+  CLOCK_IN
+  CLOCK_OUT
+  BREAK_START
+  BREAK_END
+  IDLE_START
+  IDLE_END
+}
+
+// ═══════════════════════════════════════
+// ACTIVITY MONITORING
+// ═══════════════════════════════════════
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // What user was doing
+  appName     String   @default("unknown")
+  windowTitle String   @default("")
+  appPath     String?  // Full executable path (optional)
+
+  // Timing
+  startTime   DateTime @default(now())
+  endTime     DateTime?
+  durationSec Int      @default(0)
+
+  // States
+  isIdle      Boolean  @default(false)
+  isProductive Boolean? // null = uncategorized
+
+  // Legacy fields (keep for compat)
+  status      String   @default("active")
+  idleSeconds Int      @default(0)
+  timestamp   DateTime @default(now())
+
+  @@index([userId, startTime])
+  @@index([userId, timestamp])
+}
+// ═══════════════════════════════════════
+// LEAVE MANAGEMENT
+// ═══════════════════════════════════════
+
+model LeaveBalance {
+  id     String    @id @default(cuid())
+  userId String
+  user   User      @relation(fields: [userId], references: [id])
+  type   LeaveType
+  total  Int
+  used   Int       @default(0)
+  year   Int
+
+  @@unique([userId, type, year])
+}
+
+model LeaveRequest {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id])
+  type       LeaveType
+  fromDate   DateTime
+  toDate     DateTime
+  reason     String
+  status     LeaveStatus @default(PENDING)
+  approvedBy String?
+  approver   User?       @relation("approver", fields: [approvedBy], references: [id])
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([userId, status])
+  @@index([status])
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  CASUAL
+  EMERGENCY
+  UNPAID
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ═══════════════════════════════════════
+// KPIs & OBJECTIVES
+// ═══════════════════════════════════════
+
+model KpiDefinition {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  target      Float
+  unit        String
+  category    String
+  period      KpiPeriod
+  quarter     String?
+  month       String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  assignments KpiAssignment[]
+  logs        KpiLog[]
+}
+
+model KpiAssignment {
+  id     String        @id @default(cuid())
+  kpiId  String
+  kpi    KpiDefinition @relation(fields: [kpiId], references: [id])
+  userId String
+  user   User          @relation(fields: [userId], references: [id])
+
+  @@unique([kpiId, userId])
+}
+
+model KpiLog {
+  id          String        @id @default(cuid())
+  kpiId       String
+  kpi         KpiDefinition @relation(fields: [kpiId], references: [id])
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  date        DateTime
+  valueDelta  Float
+  description String
+  createdAt   DateTime      @default(now())
+
+  @@index([kpiId, userId, date])
+}
+
+enum KpiPeriod {
+  QUARTERLY
+  MONTHLY
+}
+
+// ═══════════════════════════════════════
+// EOD REPORTS
+// ═══════════════════════════════════════
+
+model EodReport {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  date           DateTime
+  tasksCompleted String
+  kpiFocus       String?
+  blockers       String?
+  tomorrowPlan   String?
+  submittedAt    DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@index([date])
+}
+
+// ═══════════════════════════════════════
+// MONTHLY EVALUATION
+// ═══════════════════════════════════════
+
+model Evaluation {
+  id            String   @id @default(cuid())
+  evaluateeId   String
+  evaluatee     User     @relation("evaluatee", fields: [evaluateeId], references: [id])
+  evaluatorId   String
+  evaluator     User     @relation("evaluator", fields: [evaluatorId], references: [id])
+  month         String
+  satisfaction  Float
+  quality       Float
+  understanding Float
+  approach      Float
+  ethic         Float
+  averageScore  Float
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([evaluateeId, evaluatorId, month])
+  @@index([evaluateeId, month])
+}
+
+// ═══════════════════════════════════════
+// BADGES
+// ═══════════════════════════════════════
+
+model Badge {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  icon        String
+  description String
+  createdAt   DateTime    @default(now())
+
+  users UserBadge[]
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  badgeId   String
+  badge     Badge    @relation(fields: [badgeId], references: [id])
+  awardedAt DateTime @default(now())
+  awardedBy String?
+
+  @@unique([userId, badgeId])
+}
+
+// ═══════════════════════════════════════
+// OTP CODES
+// ═══════════════════════════════════════
+
+model OtpCode {
+  id        String    @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  usedAt    DateTime?
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now())
+  ipAddress String?
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
+// ═══════════════════════════════════════
+// LOGIN LOGS
+// ═══════════════════════════════════════
+
+model LoginLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  email     String
+  loginAt   DateTime @default(now())
+  ipAddress String?
+  userAgent String?
+  success   Boolean  @default(true)
+
+  @@index([userId, loginAt])
+  @@index([loginAt])
+}
+
+
+// ═══════════════════════════════════════════
+// ACTIVITY TRACKING
+// ═══════════════════════════════════════════
+
+model AppActivity {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appName   String
+  site      String?
+  seconds   Int      @default(0)
+  date      DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([date])
+}
+
+model IdleLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idleFrom  DateTime
+  idleTo    DateTime
+  seconds   Int
+  createdAt DateTime @default(now())
+
+  @@index([userId, idleFrom])
+}
+model CompanyCalendar {
+  id          String   @id @default(cuid())
+  date        DateTime
+  title       String
+  type        String   // HOLIDAY, HALF_DAY, OPTIONAL, EVENT
+  description String?
+  isRecurring Boolean  @default(false)
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  @@index([date])
+}
+model CompanySettings {
+  id                         String   @id @default("default")
+  workStartTime              String   @default("09:00")
+  workEndTime                String   @default("18:00")
+  workingDays                String[]
+  defaultDailyHours          Int      @default(8)
+  defaultWeeklyHours         Int      @default(40)
+  lateThresholdMins          Int      @default(15)
+  earlyDepartureThresholdMins Int     @default(15)
+  gracePeriodMins            Int      @default(5)
+  overtimeAfterHours         Float    @default(8)
+  overtimeEnabled            Boolean  @default(false)
+  defaultBreakMins           Int      @default(60)
+  maxBreakMins               Int      @default(90)
+  autoClockOutEnabled        Boolean  @default(false)
+  autoClockOutTime           String   @default("23:00")
+  requireNoteOnLate          Boolean  @default(false)
+  requireEOD                 Boolean  @default(true)
+  updatedAt                  DateTime @default(now())
+  updatedBy                  String?
+}
+
+model EmployeeSettings {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  dailyHours    Int?
+  weeklyHours   Int?
+  workStartTime String?
+  workEndTime   String?
+  isRemote      Boolean  @default(false)
+  customNote    String?
+  updatedAt     DateTime @default(now())
+}

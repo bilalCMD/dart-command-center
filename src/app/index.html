@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dart Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #08080a;
+  --surface: #111114;
+  --surface2: #18181c;
+  --border: rgba(255,255,255,0.06);
+  --text: #e8e8ed;
+  --muted: rgba(255,255,255,0.35);
+  --orange: #ED671C;
+  --purple: #B71CED;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.06);border-radius:2px}
+.dart-gradient{background:linear-gradient(135deg,#ED671C,#B71CED)}
+.dart-gradient-text{background:linear-gradient(135deg,#ED671C,#B71CED);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.font-display{font-family:'Montserrat',sans-serif}
+.font-mono{font-family:'JetBrains Mono',monospace}
+
+/* ── LOGIN ── */
+#login-screen{display:flex;min-height:100vh;align-items:center;justify-content:center;background:var(--bg);position:relative;overflow:hidden}
+#login-screen::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 30% 40%,rgba(237,103,28,.08),transparent),radial-gradient(ellipse 50% 60% at 70% 60%,rgba(183,28,237,.07),transparent)}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 36px;width:100%;max-width:400px;position:relative;z-index:1}
+.login-logo{display:flex;align-items:center;gap:10px;margin-bottom:32px;justify-content:center}
+.login-logo img{height:28px;filter:invert(1)}
+.login-logo span{font-family:'Montserrat',sans-serif;font-size:10px;letter-spacing:.18em;font-weight:700;color:var(--muted)}
+.login-title{font-family:'Montserrat',sans-serif;font-size:22px;font-weight:800;text-align:center;margin-bottom:6px}
+.login-sub{text-align:center;font-size:12px;color:var(--muted);margin-bottom:28px}
+.login-field{margin-bottom:16px}
+.login-field label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;letter-spacing:.06em}
+.login-field input,.login-field select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s}
+.login-field input:focus,.login-field select:focus{border-color:rgba(237,103,28,.5)}
+.login-field select option{background:var(--surface2)}
+.btn-login{width:100%;padding:11px;border:none;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;margin-top:8px;transition:opacity .2s}
+.btn-login:hover{opacity:.9}
+.login-error{font-size:11px;color:var(--danger);text-align:center;margin-top:10px;min-height:16px}
+
+/* ── APP SHELL ── */
+#app{display:none;flex;min-height:100vh}
+#app.active{display:flex}
+.sidebar{width:210px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;flex-shrink:0}
+.sidebar-logo{display:flex;align-items:center;gap:8px;padding:14px 12px;border-bottom:1px solid var(--border)}
+.sidebar-logo img{height:20px;filter:invert(1)}
+.sidebar-logo span{font-family:'Montserrat',sans-serif;font-size:8px;letter-spacing:.14em;font-weight:700;color:var(--muted);margin-left:4px}
+.view-toggle{display:flex;margin:8px;background:var(--surface2);border-radius:6px;padding:2px}
+.view-btn{flex:1;border:none;font-size:10px;font-weight:600;padding:5px;border-radius:5px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;color:var(--muted);background:transparent}
+.view-btn.active{background:linear-gradient(135deg,#ED671C,#B71CED);color:#fff}
+.sidebar-nav{flex:1;padding:6px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.nav-item{display:flex;align-items:center;padding:7px 10px;border-radius:5px;font-size:11.5px;font-weight:500;cursor:pointer;color:var(--muted);transition:all .15s;border:none;background:transparent;width:100%;text-align:left}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--surface2);color:var(--orange)}
+.sidebar-user{padding:10px 12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.sidebar-user .logout-btn{margin-left:auto;background:transparent;border:1px solid var(--border);color:var(--muted);font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s}
+.sidebar-user .logout-btn:hover{border-color:var(--danger);color:var(--danger)}
+.avatar{width:24px;height:24px;border-radius:5px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--orange);border:1px solid var(--border);flex-shrink:0}
+.user-info .name{font-size:11px;font-weight:600}
+.user-info .role{font-size:9px;color:var(--muted)}
+.main-content{flex:1;padding:20px;overflow-y:auto;max-height:100vh}
+
+/* ── PAGES ── */
+.page{display:none}
+.page.active{display:block}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.page-title{font-family:'Montserrat',sans-serif;font-size:22px;font-weight:800}
+.pill{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:10.5px;color:var(--muted)}
+.section-title{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:20px 0 10px}
+
+/* Stat cards */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:4px}
+.stat-card{background:var(--surface);border-radius:8px;padding:12px 12px 12px 20px;position:relative}
+.stat-card .accent-bar{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:8px 0 0 8px}
+.stat-label{font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.stat-value{font-family:'Montserrat',sans-serif;font-size:18px;font-weight:800}
+.stat-sub{font-size:9.5px;color:var(--muted);margin-top:2px}
+
+/* Score banner */
+.score-banner{background:var(--surface);border-radius:12px;padding:16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border-left:3px solid var(--orange)}
+.score-month{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.14em;font-family:'Montserrat',sans-serif}
+.score-num{font-family:'Montserrat',sans-serif;font-size:24px;font-weight:900}
+.score-label{font-size:12px;font-weight:700;color:var(--orange)}
+.criteria-grid{display:flex;gap:16px;flex-wrap:wrap}
+.criteria-item{text-align:center}
+.criteria-score{font-size:15px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.criteria-name{font-size:8.5px;color:var(--muted);max-width:60px}
+
+/* Ring SVG */
+.ring-wrap{display:flex;align-items:center;justify-content:center}
+
+/* Badges */
+.badge-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:6px}
+.badge-card{background:var(--surface);border-radius:8px;padding:10px;text-align:center;border:1px solid var(--border);transition:opacity .3s}
+.badge-card.locked{opacity:.22}
+.badge-icon{font-size:22px}
+.badge-name{font-size:10px;font-weight:700;margin-top:2px}
+.badge-desc{font-size:8.5px;color:var(--muted);line-height:1.3;margin-top:2px}
+.badge-earned{font-size:8.5px;color:var(--success);font-weight:600;margin-top:2px}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.kpi-card{display:flex;align-items:center;background:var(--surface);border-radius:8px;padding:10px}
+.kpi-info{margin-left:10px}
+.kpi-name{font-size:11px;font-weight:600}
+.kpi-vals{font-size:12.5px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.kpi-vals .target{color:var(--muted);font-weight:400}
+
+/* Table */
+.table-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border)}
+table{width:100%;font-size:11.5px;border-collapse:collapse}
+thead th{padding:7px 10px;background:var(--surface);font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);text-align:left}
+tbody td{padding:8px 10px;border-bottom:1px solid var(--border)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--surface2)}
+
+/* Tags */
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
+.tag-green{background:rgba(16,185,129,.12);color:#10b981}
+.tag-orange{background:rgba(237,103,28,.12);color:#ED671C}
+.tag-red{background:rgba(239,68,68,.12);color:#ef4444}
+.tag-purple{background:rgba(183,28,237,.12);color:#B71CED}
+.tag-gray{background:rgba(255,255,255,.06);color:var(--muted)}
+
+/* Form elements */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;letter-spacing:.05em}
+.form-group input,.form-group select,.form-group textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:rgba(237,103,28,.4)}
+.form-group select option{background:var(--surface2)}
+.btn-primary{border:none;padding:9px 18px;border-radius:7px;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#ED671C,#B71CED);color:#fff;transition:opacity .2s}
+.btn-primary:hover{opacity:.88}
+.btn-outline{border:1px solid var(--border);padding:8px 16px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--muted);transition:all .2s;font-family:'Inter',sans-serif}
+.btn-outline:hover{border-color:var(--orange);color:var(--orange)}
+
+/* Clock */
+.clock-display{background:var(--surface);border-radius:16px;padding:32px;text-align:center;margin-bottom:16px}
+.clock-time{font-family:'JetBrains Mono',monospace;font-size:48px;font-weight:500;letter-spacing:.02em}
+.clock-date{font-size:12px;color:var(--muted);margin-top:6px}
+.clock-status{display:inline-block;margin-top:16px;padding:6px 20px;border-radius:20px;font-size:11px;font-weight:700}
+.clock-status.in{background:rgba(16,185,129,.15);color:#10b981}
+.clock-status.out{background:rgba(239,68,68,.1);color:#ef4444}
+.clock-actions{display:flex;gap:10px;justify-content:center;margin-top:16px}
+.btn-clock{border:none;padding:12px 28px;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .2s}
+.btn-clock.in{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
+.btn-clock.out{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff}
+.btn-clock:hover{opacity:.88}
+
+/* EOD */
+.eod-form{background:var(--surface);border-radius:12px;padding:20px}
+
+/* Leaves */
+.leave-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:16px}
+.leave-card{background:var(--surface);border-radius:8px;padding:14px;text-align:center}
+.leave-count{font-family:'Montserrat',sans-serif;font-size:28px;font-weight:900}
+.leave-type{font-size:10px;color:var(--muted);margin-top:2px}
+
+/* Admin */
+.team-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:16px}
+
+/* Score page */
+.score-breakdown{background:var(--surface);border-radius:12px;padding:20px;margin-bottom:12px}
+.score-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+.score-row:last-child{border-bottom:none}
+.score-bar{flex:1;height:4px;background:rgba(255,255,255,.06);border-radius:2px;margin:0 16px;overflow:hidden}
+.score-bar-fill{height:100%;border-radius:2px;transition:width .5s}
+
+/* Responsive */
+@media(max-width:640px){
+  .sidebar{width:180px}
+  .main-content{padding:14px}
+  .page-title{font-size:18px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     LOGIN SCREEN
+═══════════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="images/logo.png" alt="Dart">
+      <span>COMMAND CENTER</span>
+    </div>
+    <div class="login-title font-display">Welcome Back</div>
+    <div class="login-sub">Sign in to your Dart workspace</div>
+
+    <div class="login-field">
+      <label>SELECT YOUR NAME</label>
+      <select id="login-user">
+        <option value="">— Choose your name —</option>
+        <optgroup label="Admin">
+          <option value="umair">Umair Ansari (Admin)</option>
+          <option value="aizaz">Aizaz Khan (Admin)</option>
+        </optgroup>
+        <optgroup label="Team">
+          <option value="maheen">Maheen Khan</option>
+          <option value="talha">Talha Tajuddin</option>
+          <option value="bilal">Bilal Altaf</option>
+          <option value="hasnain">Hasnain Karim</option>
+          <option value="lasma">Lasma Tariq</option>
+          <option value="raahim">Raahim Khan</option>
+          <option value="zahid">Zahid Chishti</option>
+          <option value="urooj">Urooj Shahab</option>
+          <option value="zainab">Zainab Ali</option>
+          <option value="hasan">Hasan Jawed</option>
+          <option value="wajiha">Wajiha Tahir</option>
+          <option value="waniya">Waniya Naushad</option>
+          <option value="okasha">Okasha Naseem</option>
+          <option value="ahad">Ahad Baig</option>
+          <option value="kaleem">Muhammad Kaleem</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="login-field">
+      <label>PASSWORD</label>
+      <input type="password" id="login-pass" placeholder="Enter your password" />
+    </div>
+
+    <button class="btn-login dart-gradient" onclick="doLogin()">Sign In →</button>
+    <div class="login-error" id="login-error"></div>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);font-size:10px;color:var(--muted);text-align:center;line-height:1.6">
+      <strong style="color:rgba(255,255,255,.4)">Default password:</strong> dart2024<br>
+      Admin password: admin2024
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     APP SHELL
+═══════════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <img src="images\logo.png" alt="Dart">
+      <span>COMMAND CENTER</span>
+    </div>
+
+    <!-- Admin/User toggle — only for admins -->
+    <div class="view-toggle" id="view-toggle" style="display:none">
+      <button class="view-btn active" id="btn-myview" onclick="switchView('user')">My View</button>
+      <button class="view-btn" id="btn-admin" onclick="switchView('admin')">Admin</button>
+    </div>
+
+    <nav class="sidebar-nav" id="sidebar-nav"></nav>
+
+    <div class="sidebar-user">
+      <div class="avatar" id="sb-avatar">UA</div>
+      <div class="user-info">
+        <div class="name" id="sb-name">User</div>
+        <div class="role" id="sb-role">Member</div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main-content" id="main-content">
+
+    <!-- ─── EMPLOYEE PAGES ─── -->
+
+    <!-- Dashboard -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div class="page-title font-display">Dashboard</div>
+        <div class="pill" id="today-date"></div>
+      </div>
+      <!-- Score Banner -->
+      <div class="score-banner">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="ring-wrap" id="dash-ring"></div>
+          <div>
+            <div class="score-month">March Evaluation</div>
+            <div class="score-num font-display">3.3 <span style="font-size:14px;color:var(--muted);font-weight:400">/4.0</span></div>
+            <div class="score-label">Meets</div>
+          </div>
+        </div>
+        <div class="criteria-grid">
+          <div class="criteria-item"><div class="criteria-score">3.5</div><div class="criteria-name">Client Satisfaction</div></div>
+          <div class="criteria-item"><div class="criteria-score">3</div><div class="criteria-name">Quality of Work</div></div>
+          <div class="criteria-item"><div class="criteria-score">3.5</div><div class="criteria-name">Project Understanding</div></div>
+          <div class="criteria-item"><div class="criteria-score">3</div><div class="criteria-name">Work Approach</div></div>
+          <div class="criteria-item"><div class="criteria-score">3.5</div><div class="criteria-name">Work Ethic</div></div>
+        </div>
+      </div>
+      <!-- Stats -->
+      <div class="stat-grid">
+        <div class="stat-card"><div class="accent-bar" style="background:#10b981"></div><div class="stat-label">Today's Hours</div><div class="stat-value font-display">6h 42m</div><div class="stat-sub">Engaged: 5h 58m</div></div>
+        <div class="stat-card"><div class="accent-bar" style="background:var(--orange)"></div><div class="stat-label">EOD Streak</div><div class="stat-value font-display">12 days</div><div class="stat-sub">Month: 92%</div></div>
+        <div class="stat-card"><div class="accent-bar" style="background:var(--purple)"></div><div class="stat-label">KPI Progress</div><div class="stat-value font-display">68%</div><div class="stat-sub">Q2 — 4/6 on track</div></div>
+        <div class="stat-card"><div class="accent-bar" style="background:var(--warning)"></div><div class="stat-label">Leave Balance</div><div class="stat-value font-display">8 days</div><div class="stat-sub">Annual: 5 · Sick: 3</div></div>
+      </div>
+      <!-- Badges -->
+      <div class="section-title">Badges</div>
+      <div class="badge-grid">
+        <div class="badge-card"><div class="badge-icon">🔥</div><div class="badge-name">7-Day Streak</div><div class="badge-desc">EOD 7 days straight</div><div class="badge-earned">✓ Earned</div></div>
+        <div class="badge-card"><div class="badge-icon">🐦</div><div class="badge-name">Early Bird</div><div class="badge-desc">Before 9 AM for 5 days</div><div class="badge-earned">✓ Earned</div></div>
+        <div class="badge-card locked"><div class="badge-icon">💎</div><div class="badge-name">Perfect Month</div><div class="badge-desc">100% EOD + 0 late</div></div>
+        <div class="badge-card locked"><div class="badge-icon">👑</div><div class="badge-name">Top Performer</div><div class="badge-desc">Highest monthly score</div></div>
+        <div class="badge-card locked"><div class="badge-icon">🎯</div><div class="badge-name">Zero Idle</div><div class="badge-desc">Under 30 min idle</div></div>
+        <div class="badge-card locked"><div class="badge-icon">🤖</div><div class="badge-name">AI Master</div><div class="badge-desc">AI workflow saving 2+ hrs</div></div>
+        <div class="badge-card locked"><div class="badge-icon">⭐</div><div class="badge-name">Client Star</div><div class="badge-desc">Direct positive client feedback</div></div>
+        <div class="badge-card locked"><div class="badge-icon">⚡</div><div class="badge-name">Full Stack</div><div class="badge-desc">3+ KPI categories in a week</div></div>
+      </div>
+      <!-- KPI Snapshot -->
+      <div class="section-title">KPI Snapshot — Q2</div>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div id="r1"></div><div class="kpi-info"><div class="kpi-name">Client Satisfaction</div><div class="kpi-vals">3.2/4 <span class="target">/ 3.5/4</span></div></div></div>
+        <div class="kpi-card"><div id="r2"></div><div class="kpi-info"><div class="kpi-name">On-Time Delivery</div><div class="kpi-vals">88% <span class="target">/ 95%</span></div></div></div>
+        <div class="kpi-card"><div id="r3"></div><div class="kpi-info"><div class="kpi-name">Revenue Growth</div><div class="kpi-vals">9% <span class="target">/ 15%</span></div></div></div>
+        <div class="kpi-card"><div id="r4"></div><div class="kpi-info"><div class="kpi-name">Content Output</div><div class="kpi-vals">32pcs <span class="target">/ 40pcs</span></div></div></div>
+        <div class="kpi-card"><div id="r5"></div><div class="kpi-info"><div class="kpi-name">Revision Rate</div><div class="kpi-vals">14% <span class="target">/ 10%</span></div></div></div>
+        <div class="kpi-card"><div id="r6"></div><div class="kpi-info"><div class="kpi-name">EOD Compliance</div><div class="kpi-vals">72% <span class="target">/ 100%</span></div></div></div>
+      </div>
+    </div>
+
+    <!-- Time Tracker / Clock -->
+    <div class="page" id="page-clock">
+      <div class="page-header"><div class="page-title font-display">Time Tracker</div></div>
+      <div class="clock-display">
+        <div class="clock-time font-mono" id="live-clock">00:00:00</div>
+        <div class="clock-date" id="clock-date"></div>
+        <div class="clock-status out" id="clock-status">Not Clocked In</div>
+        <div class="clock-actions">
+          <button class="btn-clock in" id="btn-clock-in" onclick="clockIn()">Clock In</button>
+          <button class="btn-clock out" id="btn-clock-out" onclick="clockOut()" style="display:none">Clock Out</button>
+        </div>
+      </div>
+      <div class="section-title">Today's Sessions</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Session</th><th>Clock In</th><th>Clock Out</th><th>Duration</th><th>Status</th></tr></thead>
+          <tbody id="clock-sessions">
+            <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No sessions yet today</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Activity -->
+    <div class="page" id="page-activity">
+      <div class="page-header"><div class="page-title font-display">Activity</div></div>
+      <div class="stat-grid" style="margin-bottom:16px">
+        <div class="stat-card"><div class="accent-bar" style="background:#10b981"></div><div class="stat-label">Total Hours (April)</div><div class="stat-value font-display">96h</div><div class="stat-sub">Avg 8.0h/day</div></div>
+        <div class="stat-card"><div class="accent-bar" style="background:var(--orange)"></div><div class="stat-label">Idle Time</div><div class="stat-value font-display">4.2h</div><div class="stat-sub">4.4% of total</div></div>
+        <div class="stat-card"><div class="accent-bar" style="background:var(--purple)"></div><div class="stat-label">Days Active</div><div class="stat-value font-display">12/12</div><div class="stat-sub">100% attendance</div></div>
+      </div>
+      <div class="section-title">This Week</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Day</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Idle</th><th>EOD</th></tr></thead>
+          <tbody>
+            <tr><td>Monday, Apr 7</td><td>8:52 AM</td><td>6:10 PM</td><td>9h 18m</td><td>22m</td><td><span class="tag tag-green">✓ Sent</span></td></tr>
+            <tr><td>Tuesday, Apr 8</td><td>9:05 AM</td><td>6:30 PM</td><td>9h 25m</td><td>18m</td><td><span class="tag tag-green">✓ Sent</span></td></tr>
+            <tr><td>Wednesday, Apr 9</td><td>8:48 AM</td><td>—</td><td>6h 42m</td><td>12m</td><td><span class="tag tag-orange">Pending</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Leaves -->
+    <div class="page" id="page-leaves">
+      <div class="page-header"><div class="page-title font-display">Leaves</div></div>
+      <div class="leave-summary">
+        <div class="leave-card"><div class="leave-count font-display" style="color:var(--success)">5</div><div class="leave-type">Annual Remaining</div></div>
+        <div class="leave-card"><div class="leave-count font-display" style="color:var(--orange)">3</div><div class="leave-type">Sick Remaining</div></div>
+        <div class="leave-card"><div class="leave-count font-display" style="color:var(--muted)">2</div><div class="leave-type">Used This Year</div></div>
+      </div>
+      <div class="section-title">Apply for Leave</div>
+      <div style="background:var(--surface);border-radius:12px;padding:20px;max-width:480px">
+        <div class="form-group"><label>Leave Type</label><select><option>Annual Leave</option><option>Sick Leave</option><option>Emergency Leave</option></select></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group"><label>From Date</label><input type="date"/></div>
+          <div class="form-group"><label>To Date</label><input type="date"/></div>
+        </div>
+        <div class="form-group"><label>Reason</label><textarea rows="3" placeholder="Brief reason for leave..."></textarea></div>
+        <button class="btn-primary">Submit Request</button>
+      </div>
+      <div class="section-title">Leave History</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Annual</td><td>Mar 10</td><td>Mar 11</td><td>2</td><td><span class="tag tag-green">Approved</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- KPIs & OKRs -->
+    <div class="page" id="page-kpis">
+      <div class="page-header"><div class="page-title font-display">KPIs & OKRs</div></div>
+      <div class="section-title">Q2 2026 — My KPIs</div>
+      <div class="kpi-grid" style="margin-bottom:20px">
+        <div class="kpi-card"><div id="kr1"></div><div class="kpi-info"><div class="kpi-name">Client Satisfaction</div><div class="kpi-vals">3.2/4 <span class="target">/ 3.5/4</span></div></div></div>
+        <div class="kpi-card"><div id="kr2"></div><div class="kpi-info"><div class="kpi-name">On-Time Delivery</div><div class="kpi-vals">88% <span class="target">/ 95%</span></div></div></div>
+        <div class="kpi-card"><div id="kr3"></div><div class="kpi-info"><div class="kpi-name">Revenue Growth</div><div class="kpi-vals">9% <span class="target">/ 15%</span></div></div></div>
+        <div class="kpi-card"><div id="kr4"></div><div class="kpi-info"><div class="kpi-name">Content Output</div><div class="kpi-vals">32pcs <span class="target">/ 40pcs</span></div></div></div>
+        <div class="kpi-card"><div id="kr5"></div><div class="kpi-info"><div class="kpi-name">Revision Rate</div><div class="kpi-vals">14% <span class="target">/ 10%</span></div></div></div>
+        <div class="kpi-card"><div id="kr6"></div><div class="kpi-info"><div class="kpi-name">EOD Compliance</div><div class="kpi-vals">72% <span class="target">/ 100%</span></div></div></div>
+      </div>
+      <div class="section-title">OKRs — Q2 2026</div>
+      <div style="background:var(--surface);border-radius:12px;padding:20px">
+        <div style="margin-bottom:14px">
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px">🎯 Objective: Improve client retention to 95%</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">KR1: Achieve 3.5+ avg satisfaction score <span style="float:right;color:var(--orange)">3.2 / 3.5</span></div>
+          <div style="height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden"><div style="width:91%;height:100%;background:var(--orange);border-radius:2px"></div></div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px">🚀 Objective: Scale content output by 25%</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">KR1: Deliver 40 content pieces in Q2 <span style="float:right;color:var(--success)">32 / 40</span></div>
+          <div style="height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden"><div style="width:80%;height:100%;background:var(--success);border-radius:2px"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EOD Reports -->
+    <div class="page" id="page-eod">
+      <div class="page-header"><div class="page-title font-display">EOD Reports</div></div>
+      <div class="stat-grid" style="margin-bottom:16px">
+        <div class="stat-card"><div class="accent-bar" style="background:var(--success)"></div><div class="stat-label">EOD Streak</div><div class="stat-value font-display">12 days</div></div>
+        <div class="stat-card"><div class="accent-bar" style="background:var(--orange)"></div><div class="stat-label">Month Compliance</div><div class="stat-value font-display">92%</div><div class="stat-sub">11/12 days</div></div>
+      </div>
+      <div class="section-title">Submit Today's EOD</div>
+      <div class="eod-form">
+        <div class="form-group"><label>What did you work on today?</label><textarea rows="4" placeholder="List your tasks and accomplishments..."></textarea></div>
+        <div class="form-group"><label>Blockers / Issues</label><textarea rows="2" placeholder="Any blockers or challenges? (type 'none' if clear)"></textarea></div>
+        <div class="form-group"><label>Plan for Tomorrow</label><textarea rows="3" placeholder="What's on your agenda tomorrow?"></textarea></div>
+        <div class="form-group"><label>Mood Check</label>
+          <select><option>😊 Great — high energy</option><option>🙂 Good — normal day</option><option>😐 Okay — manageable</option><option>😔 Tough — need support</option></select>
+        </div>
+        <button class="btn-primary">Submit EOD Report ✓</button>
+      </div>
+      <div class="section-title">EOD History</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Submitted At</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Apr 8, 2026</td><td>5:58 PM</td><td><span class="tag tag-green">✓ On Time</span></td></tr>
+            <tr><td>Apr 7, 2026</td><td>6:12 PM</td><td><span class="tag tag-green">✓ On Time</span></td></tr>
+            <tr><td>Apr 4, 2026</td><td>6:45 PM</td><td><span class="tag tag-orange">Late</span></td></tr>
+            <tr><td>Apr 3, 2026</td><td>5:52 PM</td><td><span class="tag tag-green">✓ On Time</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Notion Tasks -->
+    <div class="page" id="page-tasks">
+      <div class="page-header"><div class="page-title font-display">Notion Tasks</div></div>
+      <div style="background:var(--surface);border-radius:12px;padding:24px;text-align:center">
+        <div style="font-size:32px;margin-bottom:12px">📋</div>
+        <div style="font-family:'Montserrat',sans-serif;font-size:14px;font-weight:700;margin-bottom:6px">Notion Integration</div>
+        <div style="font-size:12px;color:var(--muted);max-width:300px;margin:0 auto 20px">Connect your Notion workspace to sync and manage your tasks directly here.</div>
+        <button class="btn-primary">Connect Notion →</button>
+      </div>
+      <div class="section-title">Active Tasks</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Task</th><th>Project</th><th>Due</th><th>Priority</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Social media calendar — April</td><td>Client A</td><td>Apr 12</td><td><span class="tag tag-red">High</span></td><td><span class="tag tag-orange">In Progress</span></td></tr>
+            <tr><td>Website copy revisions</td><td>Client B</td><td>Apr 14</td><td><span class="tag tag-orange">Medium</span></td><td><span class="tag tag-gray">Not Started</span></td></tr>
+            <tr><td>Q2 Strategy presentation</td><td>Internal</td><td>Apr 15</td><td><span class="tag tag-red">High</span></td><td><span class="tag tag-orange">In Progress</span></td></tr>
+            <tr><td>Campaign performance report</td><td>Client C</td><td>Apr 18</td><td><span class="tag tag-gray">Low</span></td><td><span class="tag tag-gray">Not Started</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- My Score -->
+    <div class="page" id="page-score">
+      <div class="page-header"><div class="page-title font-display">My Score</div></div>
+      <div class="score-breakdown">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+          <div id="score-ring-big"></div>
+          <div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;font-family:'Montserrat',sans-serif">Overall Score — March 2026</div>
+            <div style="font-family:'Montserrat',sans-serif;font-size:36px;font-weight:900">3.3<span style="font-size:16px;color:var(--muted);font-weight:400"> / 4.0</span></div>
+            <div style="font-size:12px;font-weight:700;color:var(--orange)">Meets Expectations</div>
+          </div>
+        </div>
+        <div class="score-row"><span style="font-size:12px;font-weight:600">Client Satisfaction</span><div class="score-bar"><div class="score-bar-fill" style="width:87.5%;background:#10b981"></div></div><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700">3.5</span></div>
+        <div class="score-row"><span style="font-size:12px;font-weight:600">Quality of Work</span><div class="score-bar"><div class="score-bar-fill" style="width:75%;background:var(--orange)"></div></div><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700">3.0</span></div>
+        <div class="score-row"><span style="font-size:12px;font-weight:600">Project Understanding</span><div class="score-bar"><div class="score-bar-fill" style="width:87.5%;background:#10b981"></div></div><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700">3.5</span></div>
+        <div class="score-row"><span style="font-size:12px;font-weight:600">Work Approach</span><div class="score-bar"><div class="score-bar-fill" style="width:75%;background:var(--orange)"></div></div><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700">3.0</span></div>
+        <div class="score-row"><span style="font-size:12px;font-weight:600">Work Ethic</span><div class="score-bar"><div class="score-bar-fill" style="width:87.5%;background:#10b981"></div></div><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700">3.5</span></div>
+      </div>
+      <div class="section-title">Score History</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Month</th><th>Score</th><th>Rating</th></tr></thead>
+          <tbody>
+            <tr><td>March 2026</td><td><span style="font-family:'JetBrains Mono',monospace">3.3</span></td><td><span class="tag tag-orange">Meets</span></td></tr>
+            <tr><td>February 2026</td><td><span style="font-family:'JetBrains Mono',monospace">3.5</span></td><td><span class="tag tag-green">Exceeds</span></td></tr>
+            <tr><td>January 2026</td><td><span style="font-family:'JetBrains Mono',monospace">3.1</span></td><td><span class="tag tag-orange">Meets</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── ADMIN PAGES ─── -->
+
+    <!-- Admin: Team Overview -->
+    <div class="page" id="page-admin-overview">
+      <div class="page-header"><div class="page-title font-display">Team Overview</div></div>
+      <div class="team-stats">
+        <div class="stat-card"><div class="accent-bar" style="background:var(--purple)"></div><div class="stat-label">Total Team</div><div class="stat-value font-display">17</div></div>
+        <div class="stat-card"><div class="accent-bar" style="background:var(--success)"></div><div class="stat-label">Present Today</div><div class="stat-value font-display">13/15</div></div>
+        <div class="stat-card"><div class="accent-bar" style="background:var(--orange)"></div><div class="stat-label">EOD MTD</div><div class="stat-value font-display">74%</div></div>
+        <div class="stat-card"><div class="accent-bar" style="background:var(--danger)"></div><div class="stat-label">Pending Leaves</div><div class="stat-value font-display">2</div></div>
+      </div>
+      <div class="section-title">Team Members</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Role</th><th>Division</th><th>Status</th><th>EOD Today</th><th>Score</th></tr></thead>
+          <tbody>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">MK</div>Maheen Khan</div></td><td>Marketing Lead</td><td>Both</td><td><span class="tag tag-green">Active</span></td><td><span class="tag tag-green">✓</span></td><td>3.6</td></tr>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">TT</div>Talha Tajuddin</div></td><td>Sales Support</td><td>Dart Growth</td><td><span class="tag tag-green">Active</span></td><td><span class="tag tag-orange">Pending</span></td><td>3.2</td></tr>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">BA</div>Bilal Altaf</div></td><td>Web Dev & IT Lead</td><td>Client Ops</td><td><span class="tag tag-green">Active</span></td><td><span class="tag tag-green">✓</span></td><td>3.8</td></tr>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">HK</div>Hasnain Karim</div></td><td>SEO Associate</td><td>Client Ops</td><td><span class="tag tag-green">Active</span></td><td><span class="tag tag-green">✓</span></td><td>3.4</td></tr>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">LT</div>Lasma Tariq</div></td><td>Creative UI/UX</td><td>Client Ops</td><td><span class="tag tag-green">Active</span></td><td><span class="tag tag-orange">Pending</span></td><td>3.5</td></tr>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">RK</div>Raahim Khan</div></td><td>Account Manager</td><td>Client Ops</td><td><span class="tag tag-green">Active</span></td><td><span class="tag tag-green">✓</span></td><td>3.3</td></tr>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">OK</div>Okasha Naseem</div></td><td>Sr. Creative (Video)</td><td>Client Ops</td><td><span class="tag tag-green">Active</span></td><td><span class="tag tag-green">✓</span></td><td>3.7</td></tr>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">AB</div>Ahad Baig</div></td><td>Creative Associate</td><td>Client Ops</td><td><span class="tag tag-green">Active</span></td><td><span class="tag tag-orange">Pending</span></td><td>3.1</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Admin: Monthly Evaluation -->
+    <div class="page" id="page-admin-eval">
+      <div class="page-header"><div class="page-title font-display">Monthly Evaluation</div></div>
+      <div style="background:var(--surface);border-radius:12px;padding:20px;max-width:560px">
+        <div class="form-group"><label>Select Employee</label>
+          <select>
+            <option>Maheen Khan — Marketing Lead</option>
+            <option>Talha Tajuddin — Sales Support</option>
+            <option>Bilal Altaf — Web Dev & IT Lead</option>
+            <option>Hasnain Karim — SEO Associate</option>
+            <option>Lasma Tariq — Creative UI/UX</option>
+            <option>Raahim Khan — Account Manager</option>
+            <option>Zahid Chishti — Creative Associate (PT)</option>
+            <option>Urooj Shahab — Sales Proposal Design</option>
+            <option>Zainab Ali — Account Manager (PK)</option>
+            <option>Hasan Jawed — Account Manager (US)</option>
+            <option>Wajiha Tahir — Cold Calling Specialist</option>
+            <option>Waniya Naushad — Research & List Building</option>
+            <option>Okasha Naseem — Sr. Creative (Video)</option>
+            <option>Ahad Baig — Creative Associate</option>
+            <option>Muhammad Kaleem — 3D CGI Artist</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Evaluation Month</label><input type="month" value="2026-03"/></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group"><label>Client Satisfaction (0-4)</label><input type="number" min="0" max="4" step="0.5" value="3.5"/></div>
+          <div class="form-group"><label>Quality of Work (0-4)</label><input type="number" min="0" max="4" step="0.5" value="3.0"/></div>
+          <div class="form-group"><label>Project Understanding (0-4)</label><input type="number" min="0" max="4" step="0.5" value="3.5"/></div>
+          <div class="form-group"><label>Work Approach (0-4)</label><input type="number" min="0" max="4" step="0.5" value="3.0"/></div>
+          <div class="form-group"><label>Work Ethic (0-4)</label><input type="number" min="0" max="4" step="0.5" value="3.5"/></div>
+        </div>
+        <div class="form-group"><label>Admin Notes</label><textarea rows="3" placeholder="Optional notes for this evaluation..."></textarea></div>
+        <button class="btn-primary">Submit Evaluation ✓</button>
+      </div>
+    </div>
+
+    <!-- Admin: Leave Requests -->
+    <div class="page" id="page-admin-leaves">
+      <div class="page-header"><div class="page-title font-display">Leave Requests</div></div>
+      <div class="stat-grid" style="margin-bottom:16px">
+        <div class="stat-card"><div class="accent-bar" style="background:var(--warning)"></div><div class="stat-label">Pending</div><div class="stat-value font-display">2</div></div>
+        <div class="stat-card"><div class="accent-bar" style="background:var(--success)"></div><div class="stat-label">Approved (April)</div><div class="stat-value font-display">5</div></div>
+        <div class="stat-card"><div class="accent-bar" style="background:var(--danger)"></div><div class="stat-label">Rejected</div><div class="stat-value font-display">1</div></div>
+      </div>
+      <div class="section-title">Pending Requests</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">TT</div>Talha Tajuddin</div></td>
+              <td>Annual</td><td>Apr 15</td><td>Apr 16</td><td>2</td>
+              <td style="color:var(--muted);font-size:11px">Family event</td>
+              <td><button class="btn-primary" style="padding:4px 12px;font-size:10px;margin-right:6px">Approve</button><button class="btn-outline" style="padding:4px 12px;font-size:10px;color:var(--danger);border-color:rgba(239,68,68,.3)">Reject</button></td>
+            </tr>
+            <tr>
+              <td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">WN</div>Waniya Naushad</div></td>
+              <td>Sick</td><td>Apr 10</td><td>Apr 10</td><td>1</td>
+              <td style="color:var(--muted);font-size:11px">Medical</td>
+              <td><button class="btn-primary" style="padding:4px 12px;font-size:10px;margin-right:6px">Approve</button><button class="btn-outline" style="padding:4px 12px;font-size:10px;color:var(--danger);border-color:rgba(239,68,68,.3)">Reject</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Admin: EOD Compliance -->
+    <div class="page" id="page-admin-eod">
+      <div class="page-header"><div class="page-title font-display">EOD Compliance</div></div>
+      <div class="stat-grid" style="margin-bottom:16px">
+        <div class="stat-card"><div class="accent-bar" style="background:var(--success)"></div><div class="stat-label">Today Submitted</div><div class="stat-value font-display">9/15</div></div>
+        <div class="stat-card"><div class="accent-bar" style="background:var(--orange)"></div><div class="stat-label">MTD Rate</div><div class="stat-value font-display">74%</div></div>
+        <div class="stat-card"><div class="accent-bar" style="background:var(--danger)"></div><div class="stat-label">Missed Today</div><div class="stat-value font-display">6</div></div>
+      </div>
+      <div class="section-title">Today's EOD Status</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Employee</th><th>Status</th><th>Submitted At</th><th>Streak</th></tr></thead>
+          <tbody>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">MK</div>Maheen Khan</div></td><td><span class="tag tag-green">✓ Submitted</span></td><td>5:48 PM</td><td>🔥 8 days</td></tr>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">BA</div>Bilal Altaf</div></td><td><span class="tag tag-green">✓ Submitted</span></td><td>6:02 PM</td><td>🔥 12 days</td></tr>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">TT</div>Talha Tajuddin</div></td><td><span class="tag tag-orange">Pending</span></td><td>—</td><td>3 days</td></tr>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">LT</div>Lasma Tariq</div></td><td><span class="tag tag-orange">Pending</span></td><td>—</td><td>5 days</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Admin: Attendance -->
+    <div class="page" id="page-admin-clock">
+      <div class="page-header"><div class="page-title font-display">Attendance</div></div>
+      <div class="stat-grid" style="margin-bottom:16px">
+        <div class="stat-card"><div class="accent-bar" style="background:var(--success)"></div><div class="stat-label">Clocked In</div><div class="stat-value font-display">11</div></div>
+        <div class="stat-card"><div class="accent-bar" style="background:var(--orange)"></div><div class="stat-label">Late Arrivals</div><div class="stat-value font-display">2</div></div>
+        <div class="stat-card"><div class="accent-bar" style="background:var(--danger)"></div><div class="stat-label">Absent</div><div class="stat-value font-display">2</div></div>
+        <div class="stat-card"><div class="accent-bar" style="background:var(--muted)"></div><div class="stat-label">On Leave</div><div class="stat-value font-display">2</div></div>
+      </div>
+      <div class="section-title">Today — April 9, 2026</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Employee</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">MK</div>Maheen Khan</div></td><td>8:55 AM</td><td>—</td><td>6h 40m</td><td><span class="tag tag-green">Active</span></td></tr>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">BA</div>Bilal Altaf</div></td><td>9:02 AM</td><td>—</td><td>6h 33m</td><td><span class="tag tag-green">Active</span></td></tr>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">HK</div>Hasnain Karim</div></td><td>9:18 AM</td><td>—</td><td>6h 17m</td><td><span class="tag tag-orange">Late</span></td></tr>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">TT</div>Talha Tajuddin</div></td><td>—</td><td>—</td><td>—</td><td><span class="tag tag-red">Absent</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Admin: Manage Badges -->
+    <div class="page" id="page-admin-badges">
+      <div class="page-header"><div class="page-title font-display">Manage Badges</div></div>
+      <div style="background:var(--surface);border-radius:12px;padding:20px;max-width:480px;margin-bottom:20px">
+        <div class="form-group"><label>Award Badge To</label>
+          <select>
+            <option>Maheen Khan</option><option>Talha Tajuddin</option><option>Bilal Altaf</option>
+            <option>Hasnain Karim</option><option>Lasma Tariq</option><option>Raahim Khan</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Badge</label>
+          <select>
+            <option>🔥 7-Day Streak</option><option>🐦 Early Bird</option><option>💎 Perfect Month</option>
+            <option>👑 Top Performer</option><option>🎯 Zero Idle</option><option>🤖 AI Master</option>
+            <option>⭐ Client Star</option><option>⚡ Full Stack</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Note (Optional)</label><input type="text" placeholder="Why this badge is being awarded..."/></div>
+        <button class="btn-primary">Award Badge 🏆</button>
+      </div>
+      <div class="section-title">Recently Awarded</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Employee</th><th>Badge</th><th>Awarded By</th><th>Date</th></tr></thead>
+          <tbody>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">BA</div>Bilal Altaf</div></td><td>🔥 7-Day Streak</td><td>Umair Ansari</td><td>Apr 7</td></tr>
+            <tr><td><div style="display:flex;align-items:center;gap:8px"><div class="avatar">MK</div>Maheen Khan</div></td><td>⭐ Client Star</td><td>Aizaz Khan</td><td>Apr 5</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+</div><!-- /app -->
+
+<script>
+// ═══════════════════════════════
+// USER DATABASE
+// ═══════════════════════════════
+const USERS = {
+  umair:   { name:'Umair Ansari',   avatar:'UA', role:'CEO & Head of Sales',       isAdmin:true,  password:'admin2024', division:'Dart Growth' },
+  aizaz:   { name:'Aizaz Khan',     avatar:'AK', role:'COO & Creative Director',   isAdmin:true,  password:'admin2024', division:'Client Operations' },
+  maheen:  { name:'Maheen Khan',    avatar:'MK', role:'Marketing Lead',            isAdmin:false, password:'dart2024',  division:'Both' },
+  talha:   { name:'Talha Tajuddin', avatar:'TT', role:'Sales Support',             isAdmin:false, password:'dart2024',  division:'Dart Growth' },
+  bilal:   { name:'Bilal Altaf',    avatar:'BA', role:'Web Dev & IT Lead',         isAdmin:false, password:'dart2024',  division:'Client Operations' },
+  hasnain: { name:'Hasnain Karim',  avatar:'HK', role:'SEO Associate',             isAdmin:false, password:'dart2024',  division:'Client Operations' },
+  lasma:   { name:'Lasma Tariq',    avatar:'LT', role:'Creative (UI/UX)',          isAdmin:false, password:'dart2024',  division:'Client Operations' },
+  raahim:  { name:'Raahim Khan',    avatar:'RK', role:'Account Manager',           isAdmin:false, password:'dart2024',  division:'Client Operations' },
+  zahid:   { name:'Zahid Chishti',  avatar:'ZC', role:'Creative Associate (PT)',   isAdmin:false, password:'dart2024',  division:'Client Operations' },
+  urooj:   { name:'Urooj Shahab',   avatar:'US', role:'Sales Proposal Design',     isAdmin:false, password:'dart2024',  division:'Dart Growth' },
+  zainab:  { name:'Zainab Ali',     avatar:'ZA', role:'Account Manager (PK)',      isAdmin:false, password:'dart2024',  division:'Client Operations' },
+  hasan:   { name:'Hasan Jawed',    avatar:'HJ', role:'Account Manager (US)',      isAdmin:false, password:'dart2024',  division:'Client Operations' },
+  wajiha:  { name:'Wajiha Tahir',   avatar:'WT', role:'Cold Calling Specialist',   isAdmin:false, password:'dart2024',  division:'Dart Growth' },
+  waniya:  { name:'Waniya Naushad', avatar:'WN', role:'Research & List Building',  isAdmin:false, password:'dart2024',  division:'Dart Growth' },
+  okasha:  { name:'Okasha Naseem',  avatar:'ON', role:'Sr. Creative (Video)',       isAdmin:false, password:'dart2024',  division:'Client Operations' },
+  ahad:    { name:'Ahad Baig',      avatar:'AB', role:'Creative Associate',        isAdmin:false, password:'dart2024',  division:'Client Operations' },
+  kaleem:  { name:'Muhammad Kaleem',avatar:'KL', role:'3D CGI Artist',             isAdmin:false, password:'dart2024',  division:'Client Operations' },
+};
+
+const USER_NAV = [
+  { id:'dashboard', label:'Dashboard' },
+  { id:'clock',     label:'Time Tracker' },
+  { id:'activity',  label:'Activity' },
+  { id:'leaves',    label:'Leaves' },
+  { id:'kpis',      label:'KPIs & OKRs' },
+  { id:'eod',       label:'EOD Reports' },
+  { id:'tasks',     label:'Notion Tasks' },
+  { id:'score',     label:'My Score' },
+];
+const ADMIN_NAV = [
+  { id:'admin-overview', label:'Team Overview' },
+  { id:'admin-eval',     label:'Monthly Evaluation' },
+  { id:'admin-leaves',   label:'Leave Requests' },
+  { id:'admin-eod',      label:'EOD Compliance' },
+  { id:'admin-clock',    label:'Attendance' },
+  { id:'admin-badges',   label:'Manage Badges' },
+];
+
+let currentUser = null;
+let currentView = 'user'; // 'user' | 'admin'
+let currentPage = 'dashboard';
+let clockedIn = false;
+let clockInTime = null;
+let sessions = [];
+
+// ═══════════════════════════════
+// LOGIN
+// ═══════════════════════════════
+function doLogin() {
+  const uid = document.getElementById('login-user').value;
+  const pass = document.getElementById('login-pass').value;
+  const err = document.getElementById('login-error');
+
+  if (!uid) { err.textContent = 'Please select your name.'; return; }
+  const user = USERS[uid];
+  if (!user) { err.textContent = 'User not found.'; return; }
+  if (pass !== user.password) { err.textContent = 'Incorrect password. Try again.'; return; }
+
+  err.textContent = '';
+  currentUser = { ...user, id: uid };
+
+  // Setup sidebar
+  document.getElementById('sb-avatar').textContent = user.avatar;
+  document.getElementById('sb-name').textContent = user.name;
+  document.getElementById('sb-role').textContent = user.role;
+
+  // Admin toggle
+  const toggle = document.getElementById('view-toggle');
+  if (user.isAdmin) {
+    toggle.style.display = 'flex';
+    currentView = 'user'; // default to My View even for admin
+  } else {
+    toggle.style.display = 'none';
+    currentView = 'user';
+  }
+
+  // Show app
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+
+  // Build nav and show first page
+  buildNav();
+  const firstPage = currentView === 'admin' ? 'admin-overview' : 'dashboard';
+  showPage(firstPage);
+
+  // Init clock
+  startClock();
+  initRings();
+}
+
+document.getElementById('login-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+function doLogout() {
+  currentUser = null;
+  clockedIn = false;
+  sessions = [];
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+}
+
+// ═══════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════
+function switchView(view) {
+  currentView = view;
+  document.getElementById('btn-myview').classList.toggle('active', view === 'user');
+  document.getElementById('btn-admin').classList.toggle('active', view === 'admin');
+  buildNav();
+  const firstPage = view === 'admin' ? 'admin-overview' : 'dashboard';
+  showPage(firstPage);
+}
+
+function buildNav() {
+  const nav = document.getElementById('sidebar-nav');
+  const items = currentView === 'admin' ? ADMIN_NAV : USER_NAV;
+  nav.innerHTML = items.map(item => `
+    <button class="nav-item" id="nav-${item.id}" onclick="showPage('${item.id}')">${item.label}</button>
+  `).join('');
+}
+
+function showPage(id) {
+  // Hide all pages
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+
+  const navBtn = document.getElementById('nav-' + id);
+  if (navBtn) navBtn.classList.add('active');
+
+  currentPage = id;
+}
+
+// ═══════════════════════════════
+// LIVE CLOCK
+// ═══════════════════════════════
+function startClock() {
+  const el = document.getElementById('live-clock');
+  const dateEl = document.getElementById('clock-date');
+  const today = document.getElementById('today-date');
+
+  function tick() {
+    const now = new Date();
+    el.textContent = now.toLocaleTimeString('en-US', {hour12:false});
+    const ds = now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+    dateEl.textContent = ds;
+    if (today) today.textContent = ds;
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ═══════════════════════════════
+// CLOCK IN/OUT
+// ═══════════════════════════════
+function clockIn() {
+  if (clockedIn) return;
+  clockedIn = true;
+  clockInTime = new Date();
+  document.getElementById('clock-status').textContent = 'Clocked In ✓';
+  document.getElementById('clock-status').className = 'clock-status in';
+  document.getElementById('btn-clock-in').style.display = 'none';
+  document.getElementById('btn-clock-out').style.display = 'inline-block';
+}
+
+function clockOut() {
+  if (!clockedIn) return;
+  clockedIn = false;
+  const outTime = new Date();
+  const dur = Math.round((outTime - clockInTime) / 60000);
+  const h = Math.floor(dur / 60), m = dur % 60;
+  sessions.push({
+    in: clockInTime.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}),
+    out: outTime.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}),
+    dur: `${h}h ${m}m`
+  });
+  document.getElementById('clock-status').textContent = 'Not Clocked In';
+  document.getElementById('clock-status').className = 'clock-status out';
+  document.getElementById('btn-clock-in').style.display = 'inline-block';
+  document.getElementById('btn-clock-out').style.display = 'none';
+  renderSessions();
+  clockInTime = null;
+}
+
+function renderSessions() {
+  const tbody = document.getElementById('clock-sessions');
+  if (!sessions.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No sessions yet today</td></tr>';
+    return;
+  }
+  tbody.innerHTML = sessions.map((s, i) => `
+    <tr>
+      <td>Session ${i+1}</td>
+      <td>${s.in}</td>
+      <td>${s.out}</td>
+      <td>${s.dur}</td>
+      <td><span class="tag tag-green">Complete</span></td>
+    </tr>
+  `).join('');
+}
+
+// ═══════════════════════════════
+// SVG RINGS
+// ═══════════════════════════════
+function makeRing(pct, size, color, strokeWidth) {
+  size = size || 48; strokeWidth = strokeWidth || 4;
+  const r = (size - strokeWidth) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (pct / 100) * circ;
+  return `<svg width="${size}" height="${size}" style="transform:rotate(-90deg);flex-shrink:0">
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="${strokeWidth}"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${strokeWidth}"
+      stroke-dasharray="${circ}" stroke-dashoffset="${offset}" stroke-linecap="round"
+      style="transition:stroke-dashoffset .5s"/>
+  </svg>`;
+}
+
+function initRings() {
+  // Dashboard score ring
+  const dr = document.getElementById('dash-ring');
+  if (dr) dr.innerHTML = makeRing(82.5, 58, '#ED671C', 5);
+
+  // Big score ring
+  const sr = document.getElementById('score-ring-big');
+  if (sr) sr.innerHTML = makeRing(82.5, 70, '#ED671C', 6);
+
+  // KPI rings dashboard
+  const kpiData = [
+    {id:'r1',pct:91,c:'#10b981'},{id:'r2',pct:93,c:'#10b981'},
+    {id:'r3',pct:60,c:'#ED671C'},{id:'r4',pct:80,c:'#ED671C'},
+    {id:'r5',pct:71,c:'#f59e0b'},{id:'r6',pct:72,c:'#ED671C'},
+  ];
+  kpiData.forEach(k => {
+    const el = document.getElementById(k.id);
+    if (el) el.innerHTML = makeRing(k.pct, 42, k.c, 4);
+    const el2 = document.getElementById('k'+k.id);
+    if (el2) el2.innerHTML = makeRing(k.pct, 42, k.c, 4);
+  });
+
+  // KPI page rings
+  const kpiData2 = [
+    {id:'kr1',pct:91,c:'#10b981'},{id:'kr2',pct:93,c:'#10b981'},
+    {id:'kr3',pct:60,c:'#ED671C'},{id:'kr4',pct:80,c:'#ED671C'},
+    {id:'kr5',pct:71,c:'#f59e0b'},{id:'kr6',pct:72,c:'#ED671C'},
+  ];
+  kpiData2.forEach(k => {
+    const el = document.getElementById(k.id);
+    if (el) el.innerHTML = makeRing(k.pct, 42, k.c, 4);
+  });
+}
+</script>
+</body>
+</html>

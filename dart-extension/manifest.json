@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Dart Activity Tracker",
+  "version": "1.0.0",
+  "description": "Tracks active Chrome tabs for Dart Command Center",
+  "permissions": ["tabs", "activeTab", "storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Dart Tracker"
+  }
+}
