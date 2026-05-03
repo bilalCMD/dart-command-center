@@ -16,14 +16,7 @@ const nextConfig = {
       },
     ],
   },
-  experimental: {
-    optimizeCss: true,
-  },
   compress: true,
   poweredByHeader: false,
-  generateEtags: true,
-  httpAgentOptions: {
-    keepAlive: true,
-  },
 };
 module.exports = nextConfig;
