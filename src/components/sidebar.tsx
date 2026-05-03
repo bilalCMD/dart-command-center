@@ -67,12 +67,11 @@ export default function Sidebar({ user, isAdmin, setIsAdmin }: SidebarProps) {
       <div className="px-4 py-4 border-b border-[var(--border)]">
         <div className="flex items-center gap-2.5">
           <div className="w-10 h-10 flex items-center justify-center">
-  <img
-    src="/dart-logo.png"
-    alt="Dart"
-    className="h-full w-full object-contain"
-  />
-</div>
+            <img
+              src="/dart-logo.png"
+              alt="Dart"
+              className="h-full w-full object-contain"
+            />
           </div>
           <div className="flex flex-col">
             <div className="text-[13px] font-bold text-[var(--text)] tracking-tight leading-tight">Dart</div>
