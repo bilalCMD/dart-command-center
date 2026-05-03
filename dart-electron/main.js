@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, session, powerMonitor } = require('electron');
 const path = require('path');
-const http = require('http');
+const https = require('https');
 const { startTracking, stopTracking, setSessionCookie } = require('./tracker/index');
 
 let mainWindow;
@@ -38,9 +38,9 @@ function clockRequest(type, note) {
     if (!currentCookie) return resolve(null);
     try {
       const body = JSON.stringify({ type, note });
-      const req = http.request({
-        hostname: 'localhost',
-        port: 3000,
+      const req = https.request({
+        hostname: 'portal.dartwebsite.com',
+        port: 443,
         path: '/api/clock',
         method: 'POST',
         headers: {
@@ -154,7 +154,6 @@ function showClockInPopup() {
 </div>
 <script>
   const { ipcRenderer } = require('electron');
-  
   function updateTime() {
     const now = new Date();
     document.getElementById('time').textContent = now.toLocaleTimeString('en-US', { hour12: false });
@@ -162,14 +161,8 @@ function showClockInPopup() {
   }
   updateTime();
   setInterval(updateTime, 1000);
-
-  function clockIn() {
-    ipcRenderer.send('popup-clock-in');
-  }
-  function skip() {
-    ipcRenderer.send('popup-skip');
-  }
-
+  function clockIn() { ipcRenderer.send('popup-clock-in'); }
+  function skip() { ipcRenderer.send('popup-skip'); }
   ipcRenderer.on('clock-success', () => {
     document.querySelector('.btn-clock').textContent = '✅ Clocked In!';
     document.querySelector('.btn-clock').style.background = '#22c55e';
@@ -180,7 +173,6 @@ function showClockInPopup() {
 </html>`;
 
   popupWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
-
   popupWindow.on('closed', () => { popupWindow = null; });
 }
 
@@ -192,6 +184,7 @@ function createMainWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      backgroundThrottling: false,
     },
     title: 'Dart Command Center',
     show: false,
@@ -210,7 +203,6 @@ function createMainWindow() {
   mainWindow.webContents.on('did-finish-load', async () => {
     const loggedIn = await captureCookies();
     if (loggedIn) {
-      // Login ho gaya — popup dikhao
       setTimeout(() => showClockInPopup(), 1000);
     }
   });
@@ -220,9 +212,7 @@ function createMainWindow() {
       cookie.name === 'next-auth.session-token' ||
       cookie.name === '__Secure-next-auth.session-token'
     )) {
-      setTimeout(async () => {
-        await captureCookies();
-      }, 500);
+      setTimeout(async () => { await captureCookies(); }, 500);
     }
   });
 
@@ -247,6 +237,10 @@ function createTray() {
   tray.on('click', () => mainWindow.show());
 }
 
+app.commandLine.appendSwitch('disk-cache-size', '104857600');
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=512');
+app.commandLine.appendSwitch('ignore-certificate-errors');
+app.commandLine.appendSwitch('allow-insecure-localhost');
 app.whenReady().then(() => {
   app.setLoginItemSettings({
     openAtLogin: true,
@@ -261,14 +255,11 @@ app.whenReady().then(() => {
     startTracking(BASE_URL, mainWindow);
   }, 5000);
 
-  // Power events
   powerMonitor.on('suspend', async () => {
-    console.log('💤 Suspended — clock out');
     await clockRequest('CLOCK_OUT', 'Auto - suspended');
   });
 
   powerMonitor.on('lock-screen', async () => {
-    console.log('🔒 Locked — clock out');
     await clockRequest('CLOCK_OUT', 'Auto - locked');
   });
 
@@ -277,7 +268,6 @@ app.whenReady().then(() => {
   });
 
   powerMonitor.on('resume', async () => {
-    console.log('☀️ Resumed');
     setTimeout(async () => {
       if (isLoggedIn) {
         await clockRequest('CLOCK_IN', 'Auto - resumed');
@@ -287,7 +277,6 @@ app.whenReady().then(() => {
   });
 
   powerMonitor.on('unlock-screen', async () => {
-    console.log('🔓 Unlocked');
     setTimeout(async () => {
       if (isLoggedIn) {
         await clockRequest('CLOCK_IN', 'Auto - unlocked');
@@ -297,7 +286,6 @@ app.whenReady().then(() => {
   });
 });
 
-// IPC handlers for popup
 ipcMain.on('popup-clock-in', async () => {
   const status = await clockRequest('CLOCK_IN', 'Manual - popup');
   if (popupWindow && !popupWindow.isDestroyed()) {
@@ -315,9 +303,7 @@ ipcMain.on('popup-skip', () => {
   }
 });
 
-app.on('window-all-closed', (e) => {
-  e.preventDefault();
-});
+app.on('window-all-closed', (e) => { e.preventDefault(); });
 
 app.on('before-quit', async () => {
   await clockRequest('CLOCK_OUT', 'Auto - quit');
