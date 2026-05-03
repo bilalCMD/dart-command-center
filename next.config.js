@@ -9,6 +9,5 @@ const nextConfig = {
   },
   compress: true,
   poweredByHeader: false,
-  output: 'standalone',
 };
 module.exports = nextConfig;
