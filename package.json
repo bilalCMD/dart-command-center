@@ -23,7 +23,7 @@
     "@notionhq/client": "^2.2.0",
     "@paymoapp/active-window": "^2.1.4",
     "@prisma/client": "^5.18.0",
-    "active-win": "^8.2.1",
+    
     "bcryptjs": "^2.4.3",
     "date-fns": "^3.6.0",
     "lucide-react": "^1.9.0",
