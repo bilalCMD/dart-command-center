@@ -8,7 +8,7 @@ let popupWindow;
 let tray;
 let currentCookie = null;
 let isLoggedIn = false;
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = 'https://portal.dartwebsite.com';
 
 async function captureCookies() {
   try {

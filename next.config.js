@@ -8,10 +8,22 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'lh3.googleusercontent.com', // Google profile photos
+        hostname: 'lh3.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 't3.gstatic.com',
       },
     ],
   },
+  experimental: {
+    optimizeCss: true,
+  },
+  compress: true,
+  poweredByHeader: false,
+  generateEtags: true,
+  httpAgentOptions: {
+    keepAlive: true,
+  },
 };
-
 module.exports = nextConfig;
