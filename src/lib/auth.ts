@@ -187,18 +187,18 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       profile(profile) {
-  const email = profile.email.toLowerCase();
-  if (!email.endsWith(`@${ALLOWED_DOMAIN}`)) {
-    throw new Error(`Only @${ALLOWED_DOMAIN} emails are allowed`);
-  }
-  return {
-    id: profile.sub,
-    email: profile.email,
-    name: profile.name,
-    image: profile.picture,
-    role: 'MEMBER' as any,
-  };
-},
+        const email = profile.email.toLowerCase();
+        if (!email.endsWith(`@${ALLOWED_DOMAIN}`)) {
+          throw new Error(`Only @${ALLOWED_DOMAIN} emails are allowed`);
+        }
+        return {
+          id: profile.sub,
+          email: profile.email,
+          name: profile.name,
+          image: profile.picture,
+          role: 'MEMBER' as any,
+        };
+      },
     }),
   ],
 
@@ -315,6 +315,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).avatar = token.avatar;
         (session.user as any).jobTitle = token.jobTitle;
         (session.user as any).division = token.division;
+        (session.user as any).image = token.image;
       }
       return session;
     },

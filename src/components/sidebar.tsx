@@ -118,8 +118,10 @@ export default function Sidebar({ user, isAdmin, setIsAdmin }: SidebarProps) {
 
       <div className="px-3 py-3 border-t border-[var(--border)] bg-[var(--surface2)]">
         <div className="flex items-center gap-2.5 mb-2.5 px-1">
-          <div className="w-9 h-9 rounded-lg dart-gradient flex items-center justify-center text-[11px] font-bold text-white shadow-soft shrink-0">
-            {user.avatar}
+          <div className="w-9 h-9 rounded-lg dart-gradient flex items-center justify-center text-[11px] font-bold text-white shadow-soft shrink-0 overflow-hidden">
+            {(user as any).image
+              ? <img src={(user as any).image} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+              : user.avatar}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-[12.5px] font-semibold text-[var(--text)] truncate">{user.name}</div>

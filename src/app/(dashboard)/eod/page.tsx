@@ -8,12 +8,12 @@ import {
 } from '@/components/ui';
 
 const KPIS = [
-  { id: 'k1', name: 'Client Satisfaction',  icon: '⭐' },
-  { id: 'k2', name: 'On-Time Delivery',      icon: '⏱' },
-  { id: 'k3', name: 'Revenue Growth',        icon: '📈' },
-  { id: 'k4', name: 'Content Output',        icon: '✍️' },
-  { id: 'k5', name: 'Revision Rate',         icon: '🔄' },
-  { id: 'k6', name: 'EOD Compliance',        icon: '✅' },
+  { id: 'k1', name: 'Client Satisfaction', icon: '⭐' },
+  { id: 'k2', name: 'On-Time Delivery', icon: '⏱' },
+  { id: 'k3', name: 'Revenue Growth', icon: '📈' },
+  { id: 'k4', name: 'Content Output', icon: '✍️' },
+  { id: 'k5', name: 'Revision Rate', icon: '🔄' },
+  { id: 'k6', name: 'EOD Compliance', icon: '✅' },
 ];
 
 type FilterType = 'all' | 'daily' | 'weekly' | 'monthly';
@@ -128,9 +128,8 @@ function KpiDropdown({
               key={k.id}
               type="button"
               onClick={() => { onChange(k.name); setOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-orange-50 transition-colors cursor-pointer border-none ${
-                k.name === value ? 'bg-orange-50' : 'bg-white'
-              } ${i !== 0 ? 'border-t border-[var(--border-subtle)]' : ''}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-orange-50 transition-colors cursor-pointer border-none ${k.name === value ? 'bg-orange-50' : 'bg-white'
+                } ${i !== 0 ? 'border-t border-[var(--border-subtle)]' : ''}`}
             >
               <span className="text-[16px] w-6 text-center leading-none shrink-0">{k.icon}</span>
               <span className={`text-[13px] font-semibold flex-1 ${k.name === value ? 'text-[var(--orange)]' : 'text-[var(--text)]'}`}>
@@ -359,9 +358,8 @@ function HistoryRow({ r, onClick }: { r: EodReport; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl border bg-white text-left cursor-pointer transition-all hover:shadow-soft hover:border-[var(--orange)] group ${
-        isToday ? 'border-[var(--orange)]' : 'border-[var(--border)]'
-      }`}
+      className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl border bg-white text-left cursor-pointer transition-all hover:shadow-soft hover:border-[var(--orange)] group ${isToday ? 'border-[var(--orange)]' : 'border-[var(--border)]'
+        }`}
     >
       <div className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center shrink-0 ${isToday ? 'dart-gradient text-white' : 'bg-[var(--surface2)] text-[var(--text)]'}`}>
         <span className="text-[8px] font-bold uppercase leading-none opacity-70">
@@ -405,29 +403,29 @@ export default function EODPage() {
   const user = session?.user as any;
   const isAdmin = user?.role === 'ADMIN';
 
-  const [reports, setReports]               = useState<EodReport[]>([]);
-  const [loading, setLoading]               = useState(true);
-  const [submitting, setSubmitting]         = useState(false);
-  const [error, setError]                   = useState('');
-  const [success, setSuccess]               = useState('');
+  const [reports, setReports] = useState<EodReport[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [selectedReport, setSelectedReport] = useState<EodReport | null>(null);
 
   // Task list state (replaces tasksCompleted string in form)
-  const [tasks, setTasks]         = useState<string[]>([]);
-  const [kpiFocus, setKpiFocus]   = useState(KPIS[0].name);
-  const [blockers, setBlockers]   = useState('');
+  const [tasks, setTasks] = useState<string[]>([]);
+  const [kpiFocus, setKpiFocus] = useState(KPIS[0].name);
+  const [blockers, setBlockers] = useState('');
   const [tomorrowPlan, setTomorrowPlan] = useState('');
 
   // History filters & pagination
-  const [filter, setFilter]   = useState<FilterType>('all');
-  const [page, setPage]       = useState(1);
+  const [filter, setFilter] = useState<FilterType>('all');
+  const [page, setPage] = useState(1);
   const [submittedToday, setSubmittedToday] = useState(false);
   const today = new Date().toISOString().split('T')[0];
 
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const res  = await fetch('/api/eod');
+      const res = await fetch('/api/eod');
       const data = await res.json();
       setReports(data.reports || []);
       setSubmittedToday(data.submittedToday ?? false); // ← API ka value use karo
@@ -439,10 +437,10 @@ export default function EODPage() {
 
   // Reset page when filter changes
   useEffect(() => { setPage(1); }, [filter]);
-;
+  ;
 
-  
-  const streak     = getStreak(reports);
+
+  const streak = getStreak(reports);
   const totalTasks = reports.reduce((sum, r) => sum + parseTasks(r.tasksCompleted).length, 0);
 
   const handleSubmit = async () => {
@@ -476,47 +474,176 @@ export default function EODPage() {
 
   // ── Filtered + paginated reports ──────────────────────────
   const filteredReports = filterReports(reports, filter);
-  const totalPages      = Math.ceil(filteredReports.length / ITEMS_PER_PAGE);
-  const pagedReports    = filteredReports.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredReports.length / ITEMS_PER_PAGE);
+  const pagedReports = filteredReports.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   // ══════════ ADMIN ══════════════════════════════════════════
   if (isAdmin) {
+    const [adminFilter, setAdminFilter] = useState<FilterType>('all');
+    const [adminPage, setAdminPage] = useState(1);
+    const [adminSelected, setAdminSelected] = useState<EodReport | null>(null);
+    const [memberFilter, setMemberFilter] = useState('');
+
+    const filtered = filterReports(reports, adminFilter)
+      .filter(r => !memberFilter || r.user?.name === memberFilter);
+    const totalAdminPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+    const paged = filtered.slice((adminPage - 1) * ITEMS_PER_PAGE, adminPage * ITEMS_PER_PAGE);
+    const members = Array.from(new Set(reports.map(r => r.user?.name).filter(Boolean)));
+
     return (
-      <div>
-        <PageHeader title="EOD Reports — All Team">
-          <StatusDot active={false} labelOn="✅ Submitted Today" labelOff="" />
-        </PageHeader>
-        <SectionTitle>All Reports</SectionTitle>
-        {loading ? (
-          <div className="text-xs text-[var(--muted)] py-8 text-center">Loading...</div>
-        ) : reports.length === 0 ? (
-          <div className="text-xs text-[var(--muted)] py-8 text-center">No EOD reports yet</div>
-        ) : (
-          <div className="flex flex-col gap-1.5">
-            {reports.map((r) => (
-              <div key={r.id} className="bg-[var(--surface)] rounded-lg p-3 border border-[var(--border)]">
-                <div className="flex justify-between items-start mb-1">
-                  <div className="flex items-center gap-2">
-                    {r.user && (
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-6 h-6 rounded-full bg-[var(--bg)] flex items-center justify-center text-[9px] font-bold border border-[var(--border)]">
-                          {r.user.avatar || r.user.name?.slice(0, 2).toUpperCase()}
-                        </div>
-                        <span className="text-[10px] font-bold">{r.user.name}</span>
-                      </div>
-                    )}
-                    <span className="text-[10px] font-bold text-[var(--orange)] font-mono">
-                      {new Date(r.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                  </div>
-                  <span className="text-[10px] bg-[var(--surface2)] px-2 py-0.5 rounded font-semibold">{r.kpiFocus}</span>
-                </div>
-                <div className="text-xs mb-0.5"><strong>Tasks:</strong> {r.tasksCompleted}</div>
-                {r.blockers && <div className="text-xs mb-0.5 text-[var(--muted)]"><strong>Blockers:</strong> {r.blockers}</div>}
-                {r.tomorrowPlan && <div className="text-xs text-[var(--muted)]"><strong>Tomorrow:</strong> {r.tomorrowPlan}</div>}
-              </div>
+      <div className="max-w-3xl animate-fade-in">
+        {adminSelected && <ReportModal r={adminSelected} onClose={() => setAdminSelected(null)} />}
+
+        {/* Header */}
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h1 className="text-[26px] font-black text-[var(--text)] tracking-tight">EOD Reports</h1>
+            <p className="text-[13px] text-[var(--muted)] mt-1">All team · {reports.length} total submissions</p>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[11px] font-bold border bg-green-50 text-green-700 border-green-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            {reports.filter(r => new Date(r.date).toDateString() === new Date().toDateString()).length} today
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {[
+            { value: reports.length, label: 'Total Reports', icon: '📋' },
+            { value: members.length, label: 'Active Members', icon: '👥' },
+            { value: reports.filter(r => new Date(r.date).toDateString() === new Date().toDateString()).length, label: 'Submitted Today', icon: '✅' },
+          ].map(s => (
+            <div key={s.label} className="bg-white rounded-2xl border border-[var(--border)] px-4 py-4 text-center">
+              <div className="text-[22px] mb-1">{s.icon}</div>
+              <div className="text-[22px] font-black text-[var(--text)] leading-none">{s.value}</div>
+              <div className="text-[10px] text-[var(--muted)] font-bold uppercase tracking-wider mt-1">{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div className="flex gap-3 mb-5 flex-wrap">
+          {/* Time filter */}
+          <div className="flex gap-1 bg-[var(--surface2)] border border-[var(--border)] rounded-xl p-1">
+            {(['all', 'daily', 'weekly', 'monthly'] as FilterType[]).map(f => (
+              <button
+                key={f}
+                onClick={() => { setAdminFilter(f); setAdminPage(1); }}
+                className={`py-1.5 px-3 rounded-lg text-[11px] font-bold capitalize transition-all border-none cursor-pointer ${adminFilter === f ? 'dart-gradient text-white shadow-sm' : 'bg-transparent text-[var(--muted)] hover:text-[var(--text)]'
+                  }`}
+              >
+                {f === 'daily' ? 'Today' : f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
             ))}
           </div>
+
+          {/* Member filter */}
+          <div className="relative">
+            <select
+              value={memberFilter}
+              onChange={e => { setMemberFilter(e.target.value); setAdminPage(1); }}
+              style={{
+                padding: '7px 32px 7px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: 600,
+                background: '#fff', border: '1px solid var(--border)', color: 'var(--text)',
+                cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+              }}
+            >
+              <option value="">All Members</option>
+              {members.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', color: '#94a3b8', pointerEvents: 'none' }}>▾</span>
+          </div>
+        </div>
+
+        {/* Reports */}
+        {loading ? (
+          <div className="flex items-center justify-center py-12 gap-2 text-[var(--muted)]">
+            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray="31.4 31.4" />
+            </svg>
+            <span className="text-[12px]">Loading...</span>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-dashed border-[var(--border)] py-16 text-center">
+            <div className="text-[36px] mb-3">📭</div>
+            <div className="text-[13px] font-bold text-[var(--text)]">No reports found</div>
+            <div className="text-[11px] text-[var(--muted)] mt-1">Try changing the filters above</div>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-col gap-3">
+              {paged.map(r => {
+                const tasks = parseTasks(r.tasksCompleted);
+                const isToday = new Date(r.date).toDateString() === new Date().toDateString();
+                const kpi = KPIS.find(k => k.name === r.kpiFocus);
+                return (
+                  <button
+                    key={r.id}
+                    onClick={() => setAdminSelected(r)}
+                    className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl border bg-white text-left cursor-pointer transition-all hover:shadow-soft hover:border-[var(--orange)] group ${isToday ? 'border-[var(--orange)]' : 'border-[var(--border)]'
+                      }`}
+                  >
+                    {/* Avatar */}
+                    <div className="w-10 h-10 rounded-xl dart-gradient flex items-center justify-center text-[13px] font-black text-white shrink-0">
+                      {r.user?.avatar || r.user?.name?.slice(0, 2).toUpperCase() || '??'}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[13px] font-bold text-[var(--text)]">{r.user?.name || 'Unknown'}</span>
+                        {isToday && <span className="text-[9px] font-bold uppercase tracking-wider bg-[var(--orange)] text-white px-1.5 py-0.5 rounded">Today</span>}
+                        <span className="text-[11px] text-[var(--muted)] font-semibold">
+                          {new Date(r.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-[var(--muted)] font-semibold flex items-center gap-1">
+                        <span>{kpi?.icon}</span>
+                        <span>{tasks.length} task{tasks.length !== 1 ? 's' : ''} · {r.kpiFocus}</span>
+                        {r.blockers && <span> · ⚠ Blockers</span>}
+                      </div>
+                      <div className="text-[11px] text-[var(--muted)] mt-0.5 truncate">
+                        {tasks[0] || ''}{tasks.length > 1 ? ` +${tasks.length - 1} more` : ''}
+                      </div>
+                    </div>
+
+                    {/* Arrow */}
+                    <div className="w-7 h-7 rounded-full bg-[var(--surface2)] group-hover:bg-[var(--orange)] flex items-center justify-center shrink-0 transition-colors">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="group-hover:text-white text-[var(--muted)]">
+                        <path d="M3.5 2l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Pagination */}
+            {totalAdminPages > 1 && (
+              <div className="flex items-center justify-between mt-5 px-1">
+                <button onClick={() => setAdminPage(p => Math.max(1, p - 1))} disabled={adminPage === 1}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border)] bg-white text-[11px] font-bold text-[var(--text)] hover:border-[var(--orange)] transition-all cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed">
+                  ← Prev
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalAdminPages }, (_, i) => i + 1).map(n => (
+                    <button key={n} onClick={() => setAdminPage(n)}
+                      className={`w-7 h-7 rounded-lg text-[11px] font-bold border-none cursor-pointer transition-all ${n === adminPage ? 'dart-gradient text-white' : 'bg-[var(--surface2)] text-[var(--muted)] hover:text-[var(--text)]'}`}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => setAdminPage(p => Math.min(totalAdminPages, p + 1))} disabled={adminPage === totalAdminPages}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border)] bg-white text-[11px] font-bold text-[var(--text)] hover:border-[var(--orange)] transition-all cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed">
+                  Next →
+                </button>
+              </div>
+            )}
+            <div className="text-center mt-3">
+              <span className="text-[10px] text-[var(--muted)]">Page {adminPage} of {totalAdminPages} · showing {paged.length} of {filtered.length}</span>
+            </div>
+          </>
         )}
       </div>
     );
@@ -539,20 +666,19 @@ export default function EODPage() {
           </p>
         </div>
         {/* Status badge */}
-<div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[11px] font-bold border ${
-  loading
-    ? 'bg-[var(--surface2)] text-[var(--muted)] border-[var(--border)]'
-    : submittedToday
-      ? 'bg-green-50 text-green-700 border-green-200'
-      : 'bg-amber-50 text-amber-700 border-amber-200'
-}`}>
-  {loading ? (
-    <span className="w-1.5 h-1.5 rounded-full bg-[var(--muted)]" />
-  ) : (
-    <span className={`w-1.5 h-1.5 rounded-full ${submittedToday ? 'bg-green-500' : 'bg-amber-400 animate-pulse'}`} />
-  )}
-  {loading ? '...' : submittedToday ? 'Submitted' : 'Pending'}
-</div>
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[11px] font-bold border ${loading
+            ? 'bg-[var(--surface2)] text-[var(--muted)] border-[var(--border)]'
+            : submittedToday
+              ? 'bg-green-50 text-green-700 border-green-200'
+              : 'bg-amber-50 text-amber-700 border-amber-200'
+          }`}>
+          {loading ? (
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--muted)]" />
+          ) : (
+            <span className={`w-1.5 h-1.5 rounded-full ${submittedToday ? 'bg-green-500' : 'bg-amber-400 animate-pulse'}`} />
+          )}
+          {loading ? '...' : submittedToday ? 'Submitted' : 'Pending'}
+        </div>
       </div>
 
       {/* Stats */}
@@ -694,11 +820,10 @@ export default function EODPage() {
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold capitalize transition-all border-none cursor-pointer ${
-              filter === f
+            className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold capitalize transition-all border-none cursor-pointer ${filter === f
                 ? 'dart-gradient text-white shadow-sm'
                 : 'bg-transparent text-[var(--muted)] hover:text-[var(--text)]'
-            }`}
+              }`}
           >
             {f === 'daily' ? 'Today' : f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
           </button>
@@ -747,11 +872,10 @@ export default function EODPage() {
                   <button
                     key={n}
                     onClick={() => setPage(n)}
-                    className={`w-7 h-7 rounded-lg text-[11px] font-bold border-none cursor-pointer transition-all ${
-                      n === page
+                    className={`w-7 h-7 rounded-lg text-[11px] font-bold border-none cursor-pointer transition-all ${n === page
                         ? 'dart-gradient text-white'
                         : 'bg-[var(--surface2)] text-[var(--muted)] hover:text-[var(--text)]'
-                    }`}
+                      }`}
                   >
                     {n}
                   </button>
