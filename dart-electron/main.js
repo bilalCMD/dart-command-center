@@ -248,9 +248,27 @@ app.whenReady().then(() => {
   createMainWindow();
   createTray();
 
+// Wait for cookie before starting tracker
+  let trackerStarted = false;
+  const tryStartTracker = setInterval(async () => {
+    const hasCookie = await captureCookies();
+    if (hasCookie && !trackerStarted) {
+      trackerStarted = true;
+      clearInterval(tryStartTracker);
+      console.log('✅ Cookie ready, starting tracker...');
+      startTracking(BASE_URL, mainWindow);
+    }
+  }, 3000);
+
+  // Fallback — start anyway after 30s
   setTimeout(() => {
-    startTracking(BASE_URL, mainWindow);
-  }, 5000);
+    if (!trackerStarted) {
+      trackerStarted = true;
+      clearInterval(tryStartTracker);
+      console.log('⚠️ Starting tracker without cookie (fallback)');
+      startTracking(BASE_URL, mainWindow);
+    }
+  }, 30000);
 
   powerMonitor.on('suspend', async () => {
     await clockRequest('CLOCK_OUT', 'Auto - suspended');

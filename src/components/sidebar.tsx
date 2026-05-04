@@ -60,7 +60,8 @@ interface SidebarProps {
 
 export default function Sidebar({ user, isAdmin, setIsAdmin }: SidebarProps) {
   const pathname = usePathname();
-  const nav = user.isAdmin ? ADMIN_NAV : EMPLOYEE_NAV;
+  const isBilal = user.email === 'bilal.altaf@dartmarketing.io';
+  const nav = isAdmin ? ADMIN_NAV : EMPLOYEE_NAV;
 
   return (
     <div className="w-[230px] bg-white border-r border-[var(--border)] flex flex-col sticky top-0 h-screen shrink-0">
@@ -83,7 +84,7 @@ export default function Sidebar({ user, isAdmin, setIsAdmin }: SidebarProps) {
       <nav className="flex-1 px-2 py-3 flex flex-col gap-0.5 overflow-y-auto">
         <div className="px-2 pb-1.5">
           <span className="text-[9px] font-bold text-[var(--subtle)] tracking-[0.14em] uppercase">
-            {user.isAdmin ? 'Admin Menu' : 'Menu'}
+            {isAdmin ? 'Admin Menu' : 'Menu'}
           </span>
         </div>
         {nav.map((item) => {
@@ -125,6 +126,16 @@ export default function Sidebar({ user, isAdmin, setIsAdmin }: SidebarProps) {
             <div className="text-[10.5px] text-[var(--muted)] truncate">{user.email || user.role}</div>
           </div>
         </div>
+
+        {isBilal && (
+          <button
+            onClick={() => setIsAdmin(!isAdmin)}
+            className="w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold py-2 bg-white border border-[var(--border)] rounded-lg cursor-pointer hover:border-[var(--orange)] hover:text-[var(--orange)] transition-all mb-2"
+          >
+            {isAdmin ? '👤 Employee View' : '⚙️ Admin View'}
+          </button>
+        )}
+
         <button
           onClick={() => signOut({ callbackUrl: '/login' })}
           className="w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-[var(--text-soft)] py-2 bg-white border border-[var(--border)] rounded-lg cursor-pointer hover:text-[var(--danger)] hover:border-[var(--danger)] hover:bg-[var(--danger-soft)] transition-all"
