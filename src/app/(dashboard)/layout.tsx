@@ -114,7 +114,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen bg-[var(--bg)] text-[var(--text)] font-body">
       {loading && <PageLoader />}
-      <Sidebar user={sessionUser} isAdmin={isAdminView} setIsAdmin={() => {}} />
+      <Sidebar user={sessionUser} isAdmin={isAdminView} setIsAdmin={setIsAdminView} />
       <main className="flex-1 p-5 overflow-y-auto max-h-screen">
         <Suspense fallback={
           <div className="flex items-center justify-center py-20">
