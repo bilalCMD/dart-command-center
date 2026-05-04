@@ -12,10 +12,12 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const dateParam = searchParams.get('date');
     const userId = searchParams.get('userId');
-    const targetDate = dateParam ? new Date(dateParam) : new Date();
-    const dateKey = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()));
-    const nextDay = new Date(dateKey);
-    nextDay.setDate(nextDay.getDate() + 1);
+
+    // Fix: parse date string directly to avoid UTC timezone shift (PKT = UTC+5)
+    const dateStr = dateParam || new Date().toISOString().split('T')[0];
+    const [yyyy, mm, dd] = dateStr.split('-').map(Number);
+    const dateKey = new Date(Date.UTC(yyyy, mm - 1, dd));
+    const nextDay = new Date(Date.UTC(yyyy, mm - 1, dd + 1));
 
     const members = await prisma.user.findMany({
       where: { isActive: true },
@@ -39,10 +41,7 @@ export async function GET(req: NextRequest) {
         }),
       ]);
 
-      // Calculate actual working time from clock events
       let totalSeconds = calculateWorkingSeconds(allClockEvents);
-      
-      // Fallback to activity data if no clock data
       if (totalSeconds === 0) {
         totalSeconds = activities.reduce((s, a) => s + a.seconds, 0);
       }
@@ -131,7 +130,6 @@ function calculateWorkingSeconds(events: any[]): number {
     }
   }
 
-  // Still clocked in - add ongoing time
   if (workStart) {
     totalSeconds += Math.floor((Date.now() - workStart.getTime()) / 1000);
   }

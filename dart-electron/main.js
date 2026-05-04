@@ -200,11 +200,8 @@ function createMainWindow() {
     await captureCookies();
   });
 
-  mainWindow.webContents.on('did-finish-load', async () => {
-    const loggedIn = await captureCookies();
-    if (loggedIn) {
-      setTimeout(() => showClockInPopup(), 1000);
-    }
+mainWindow.webContents.on('did-finish-load', async () => {
+    await captureCookies();
   });
 
   session.defaultSession.cookies.on('changed', async (event, cookie, cause, removed) => {
