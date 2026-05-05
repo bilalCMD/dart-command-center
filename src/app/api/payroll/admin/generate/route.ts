@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     // Per minute rates
     const perMinuteNormal = salaryRecord.monthlySalary / workingDays / 8 / 60;
-    const perMinuteBonus = perMinuteNormal * 3; // Triple rate for overtime
+    const perMinuteBonus = perMinuteNormal * 3;
 
     // Approved leaves
     const approvedLeaves = await prisma.leaveRequest.findMany({
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       orderBy: { timestamp: "asc" },
     });
 
-    // Group events by date and calculate worked seconds per day
+    // Group events by date
     const dayMap = new Map<string, { clockIn: Date | null; totalSeconds: number }>();
 
     for (const ev of clockEvents) {
@@ -87,43 +87,37 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // If still clocked in today, count until now
-    for (const [, entry] of dayMap) {
+    // If still clocked in, count until now
+    dayMap.forEach((entry) => {
       if (entry.clockIn) {
         entry.totalSeconds += (Date.now() - entry.clockIn.getTime()) / 1000;
         entry.clockIn = null;
       }
-    }
+    });
 
-    const presentDaysSet = new Set<string>(dayMap.keys());
-    const presentDays = presentDaysSet.size;
+    const presentDays = dayMap.size;
     const absentDays = Math.max(0, workingDays - presentDays - leaveDays);
 
-    // Calculate bonus and deductions per day
-    const TARGET_SECONDS = 8 * 3600;       // 8 hours
-    const BONUS_THRESHOLD = 8.5 * 3600;    // 8h 30min
-    const DEDUCT_THRESHOLD = 7 * 3600;     // 7 hours
+    // Bonus and deductions per day
+    const BONUS_THRESHOLD = 8.5 * 3600;
+    const DEDUCT_THRESHOLD = 7 * 3600;
 
     let totalBonusAmount = 0;
     let totalShortDeduction = 0;
     let overtimeDays = 0;
     let shortDays = 0;
 
-    for (const [dateStr, entry] of dayMap) {
-      // Skip leave days
+    for (const [dateStr, entry] of Array.from(dayMap.entries())) {
       if (leaveDatesSet.has(dateStr)) continue;
 
       const workedSeconds = entry.totalSeconds;
-      const workedMinutes = workedSeconds / 60;
 
-      // Bonus: worked more than 8h 30min
       if (workedSeconds > BONUS_THRESHOLD) {
         const extraMinutes = (workedSeconds - BONUS_THRESHOLD) / 60;
         totalBonusAmount += extraMinutes * perMinuteBonus;
         overtimeDays++;
       }
 
-      // Deduction: worked less than 7h (but was present)
       if (workedSeconds < DEDUCT_THRESHOLD && workedSeconds > 0) {
         const shortMinutes = (DEDUCT_THRESHOLD - workedSeconds) / 60;
         totalShortDeduction += shortMinutes * perMinuteNormal;
@@ -131,17 +125,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Absent deduction
     const perDaySalary = salaryRecord.monthlySalary / workingDays;
     const absentDeduction = absentDays * perDaySalary;
-
     const totalDeductions = Math.round(absentDeduction + totalShortDeduction);
     const finalSalary = Math.max(0, salaryRecord.monthlySalary - totalDeductions + totalBonusAmount);
 
     const deductionBreakdown = {
       absentDays,
       absentDeduction: Math.round(absentDeduction),
-      leavedays: leaveDays,
+      leaveDays,
       leaveDeduction: 0,
       shortDays,
       shortDeduction: Math.round(totalShortDeduction),
