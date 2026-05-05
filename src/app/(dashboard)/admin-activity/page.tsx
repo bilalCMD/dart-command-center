@@ -32,7 +32,6 @@ export default function ActivityMonitorPage() {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'apps' | 'chrome'>('apps');
-  const [expandedApp, setExpandedApp] = useState<string | null>(null);
 
   useEffect(() => { fetchMembers(); }, [date]);
 
@@ -40,7 +39,13 @@ export default function ActivityMonitorPage() {
     setLoading(true);
     const res = await fetch(`/api/admin/activity?date=${date}`);
     const data = await res.json();
-    setMembers(data.members || []);
+    // Sort: active members first
+    const sorted = (data.members || []).sort((a: any, b: any) => {
+      if (a.isTracking && !b.isTracking) return -1;
+      if (!a.isTracking && b.isTracking) return 1;
+      return b.totalSeconds - a.totalSeconds;
+    });
+    setMembers(sorted);
     setLoading(false);
   }
 
@@ -56,251 +61,241 @@ export default function ActivityMonitorPage() {
     setSelected(m);
     setDetail(null);
     setActiveTab('apps');
-    setExpandedApp(null);
     fetchDetail(m.id);
   }
 
-  // Separate Chrome sites from other apps
   const chromeApps = detail?.byApp?.filter((a: any) => a.appName === 'Google Chrome') || [];
   const otherApps = detail?.byApp?.filter((a: any) => a.appName !== 'Google Chrome') || [];
-  
-  // Flatten all Chrome sites
   const chromeSites = chromeApps.flatMap((a: any) =>
     Object.entries(a.sites || {}).map(([site, secs]) => ({ site, seconds: secs as number }))
   ).sort((a: any, b: any) => b.seconds - a.seconds);
-
   const totalChromeSeconds = chromeSites.reduce((s: number, c: any) => s + c.seconds, 0);
 
+  const activeMembers = members.filter(m => m.isTracking);
+  const inactiveMembers = members.filter(m => !m.isTracking);
+
   return (
-    <div className="space-y-5">
+    <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
-          <h1 className="text-xl font-bold text-[var(--text)]">Activity Monitor</h1>
-          <p className="text-sm text-[var(--muted)] mt-0.5">Track employee app usage & idle time</p>
+          <h1 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text)', margin: 0 }}>Activity Monitor</h1>
+          <p style={{ fontSize: '13px', color: 'var(--muted)', margin: '4px 0 0' }}>Track employee app usage & idle time</p>
         </div>
         <input
           type="date"
           value={date}
           onChange={e => { setDate(e.target.value); setSelected(null); setDetail(null); }}
-          className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--text)] text-sm focus:outline-none focus:border-[var(--orange)]"
+          style={{
+            background: '#fff', border: '1px solid var(--border)', borderRadius: '10px',
+            padding: '8px 12px', fontSize: '13px', color: 'var(--text)',
+            outline: 'none', cursor: 'pointer',
+          }}
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '16px' }}>
         {/* Members List */}
-        <div className="lg:col-span-1">
-          <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] overflow-hidden">
-            <div className="px-4 py-3 border-b border-[var(--border)]">
-              <h2 className="text-xs font-bold text-[var(--muted)] tracking-widest uppercase">
-                Team Members ({members.length})
-              </h2>
-            </div>
-            {loading ? (
-              <div className="p-6 text-center text-sm text-[var(--muted)]">Loading...</div>
-            ) : (
-              <div className="divide-y divide-[var(--border)]">
-                {members.map(m => (
-                  <button
-                    key={m.id}
-                    onClick={() => selectMember(m)}
-                    className={`w-full px-4 py-3 text-left transition-all relative ${
-                      selected?.id === m.id ? 'bg-[var(--surface2)]' : 'hover:bg-[var(--surface2)]'
-                    }`}
-                  >
-                    {selected?.id === m.id && (
-                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full dart-gradient" />
-                    )}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg dart-gradient flex items-center justify-center text-xs font-bold text-white shrink-0">
-                          {m.avatar || m.name?.[0] || '?'}
-                        </div>
-                        <div>
-                          <p className="text-[13px] font-semibold text-[var(--text)]">{m.name}</p>
-                          <p className="text-[11px] text-[var(--muted)]">{m.role}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        {m.isTracking ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-green-500 font-medium">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                            {fmtTime(m.totalSeconds)}
-                          </span>
-                        ) : (
-                          <span className="text-[11px] text-[var(--subtle)]">No data</span>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+        <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+          {/* Active count header */}
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              Team Members ({members.length})
+            </span>
+            {activeMembers.length > 0 && (
+              <span style={{ fontSize: '10px', fontWeight: 700, background: '#dcfce7', color: '#16a34a', padding: '2px 8px', borderRadius: '99px' }}>
+                {activeMembers.length} active
+              </span>
             )}
           </div>
+
+          {loading ? (
+            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--muted)', fontSize: '13px' }}>Loading...</div>
+          ) : (
+            <div style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
+              {/* Active Members */}
+              {activeMembers.length > 0 && (
+                <>
+                  <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Active Now</span>
+                  </div>
+                  {activeMembers.map(m => (
+                    <MemberRow key={m.id} m={m} selected={selected} onSelect={selectMember} active />
+                  ))}
+                  {inactiveMembers.length > 0 && <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />}
+                </>
+              )}
+
+              {/* Inactive Members */}
+              {inactiveMembers.length > 0 && (
+                <>
+                  {activeMembers.length > 0 && (
+                    <div style={{ padding: '8px 16px 4px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>No Data</span>
+                    </div>
+                  )}
+                  {inactiveMembers.map(m => (
+                    <MemberRow key={m.id} m={m} selected={selected} onSelect={selectMember} active={false} />
+                  ))}
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Detail Panel */}
-        <div className="lg:col-span-2 space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {!selected ? (
-            <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] h-48 flex items-center justify-center">
-              <div className="text-center">
-                <div className="text-3xl mb-2">👆</div>
-                <p className="text-sm text-[var(--muted)]">Select a member to view their activity</p>
-              </div>
+            <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--border)', padding: '48px', textAlign: 'center' }}>
+              <div style={{ fontSize: '40px', marginBottom: '12px' }}>👈</div>
+              <p style={{ fontSize: '14px', color: 'var(--muted)', fontWeight: 500 }}>Select a member to view their activity</p>
             </div>
           ) : detailLoading ? (
-            <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] h-48 flex items-center justify-center">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 rounded-full bg-[var(--orange)] animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-2 h-2 rounded-full bg-[var(--orange)] animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-2 h-2 rounded-full bg-[var(--orange)] animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--border)', padding: '48px', textAlign: 'center' }}>
+              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                {[0, 150, 300].map(d => (
+                  <div key={d} style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--orange)', animation: 'bounce 1s infinite', animationDelay: `${d}ms` }} />
+                ))}
               </div>
             </div>
           ) : detail ? (
             <>
+              {/* Member header */}
+              <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--border)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #f97316, #fb923c)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 800, color: '#fff' }}>
+                  {selected.avatar || selected.name?.[0] || '?'}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)' }}>{selected.name}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{selected.role}</div>
+                </div>
+                {selected.isTracking && (
+                  <span style={{ fontSize: '11px', fontWeight: 700, background: '#dcfce7', color: '#16a34a', padding: '4px 10px', borderRadius: '99px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />
+                    Active
+                  </span>
+                )}
+              </div>
+
               {/* Summary Cards */}
-              <div className="grid grid-cols-4 gap-3">
-                <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-3 text-center">
-                  <p className="text-lg font-bold text-[var(--orange)]">{fmtTime(detail.totalSeconds)}</p>
-                  <p className="text-[10px] text-[var(--muted)] mt-0.5">Active Time</p>
-                </div>
-                <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-3 text-center">
-                  <p className="text-lg font-bold text-amber-500">{fmtTime(detail.totalIdleSeconds)}</p>
-                  <p className="text-[10px] text-[var(--muted)] mt-0.5">Idle Time</p>
-                </div>
-                <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-3 text-center">
-                  <p className="text-lg font-bold text-[var(--text)]">{otherApps.length}</p>
-                  <p className="text-[10px] text-[var(--muted)] mt-0.5">Apps Used</p>
-                </div>
-                <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-3 text-center">
-                  <p className="text-lg font-bold text-blue-500">{chromeSites.length}</p>
-                  <p className="text-[10px] text-[var(--muted)] mt-0.5">Sites Visited</p>
-                </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+                {[
+                  { label: 'Active Time', value: fmtTime(detail.totalSeconds), color: 'var(--orange)' },
+                  { label: 'Idle Time', value: fmtTime(detail.totalIdleSeconds), color: '#f59e0b' },
+                  { label: 'Apps Used', value: otherApps.length, color: 'var(--text)' },
+                  { label: 'Sites Visited', value: chromeSites.length, color: '#3b82f6' },
+                ].map(s => (
+                  <div key={s.label} style={{ background: '#fff', borderRadius: '14px', border: '1px solid var(--border)', padding: '14px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: s.color }}>{s.value}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--muted)', marginTop: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</div>
+                  </div>
+                ))}
               </div>
 
               {/* Tabs */}
-              <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] overflow-hidden">
-                <div className="flex border-b border-[var(--border)]">
-                  <button
-                    onClick={() => setActiveTab('apps')}
-                    className={`flex-1 px-4 py-3 text-xs font-bold tracking-widest uppercase transition-all ${
-                      activeTab === 'apps'
-                        ? 'text-[var(--orange)] border-b-2 border-[var(--orange)] bg-[var(--surface2)]'
-                        : 'text-[var(--muted)] hover:text-[var(--text)]'
-                    }`}
-                  >
-                    📱 Apps ({otherApps.length})
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('chrome')}
-                    className={`flex-1 px-4 py-3 text-xs font-bold tracking-widest uppercase transition-all ${
-                      activeTab === 'chrome'
-                        ? 'text-[var(--orange)] border-b-2 border-[var(--orange)] bg-[var(--surface2)]'
-                        : 'text-[var(--muted)] hover:text-[var(--text)]'
-                    }`}
-                  >
-                    🌐 Chrome ({chromeSites.length} sites)
-                  </button>
+              <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
+                  {[
+                    { key: 'apps', label: `📱 Apps (${otherApps.length})` },
+                    { key: 'chrome', label: `🌐 Chrome (${chromeSites.length} sites)` },
+                  ].map(tab => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setActiveTab(tab.key as any)}
+                      style={{
+                        flex: 1, padding: '12px 16px', fontSize: '12px', fontWeight: 700,
+                        border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                        background: activeTab === tab.key ? '#fff7ed' : '#fafafa',
+                        color: activeTab === tab.key ? 'var(--orange)' : 'var(--muted)',
+                        borderBottom: activeTab === tab.key ? '2px solid var(--orange)' : '2px solid transparent',
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
                 </div>
 
-                {/* Apps Tab */}
                 {activeTab === 'apps' && (
                   <div>
                     {otherApps.length === 0 ? (
-                      <div className="p-8 text-center">
-                        <div className="text-3xl mb-2">📭</div>
-                        <p className="text-sm text-[var(--muted)]">No app activity tracked</p>
-                        <p className="text-xs text-[var(--subtle)] mt-1">Make sure desktop app is running</p>
+                      <div style={{ padding: '40px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '32px', marginBottom: '10px' }}>📭</div>
+                        <p style={{ fontSize: '13px', color: 'var(--muted)' }}>No app activity tracked</p>
+                        <p style={{ fontSize: '11px', color: 'var(--subtle)', marginTop: '4px' }}>Make sure desktop app is running</p>
                       </div>
-                    ) : (
-                      <div className="divide-y divide-[var(--border)]">
-                        {otherApps.map((app: any) => {
-                          const pct = detail.totalSeconds > 0
-                            ? Math.round((app.seconds / detail.totalSeconds) * 100) : 0;
-                          const icon = APP_ICONS[app.appName] || '💼';
-                          return (
-                            <div key={app.appName} className="px-4 py-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-lg">{icon}</span>
-                                  <span className="text-[13px] font-semibold text-[var(--text)]">{app.appName}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-medium text-[var(--text)]">{fmtTime(app.seconds)}</span>
-                                  <span className="text-[11px] text-[var(--muted)] bg-[var(--surface2)] px-1.5 py-0.5 rounded">{pct}%</span>
-                                </div>
-                              </div>
-                              <div className="h-1.5 bg-[var(--surface2)] rounded-full overflow-hidden">
-                                <div className="h-full dart-gradient rounded-full" style={{ width: `${pct}%` }} />
-                              </div>
+                    ) : otherApps.map((app: any) => {
+                      const pct = detail.totalSeconds > 0 ? Math.round((app.seconds / detail.totalSeconds) * 100) : 0;
+                      const icon = APP_ICONS[app.appName] || '💼';
+                      return (
+                        <div key={app.appName} style={{ padding: '14px 20px', borderBottom: '1px solid #f8fafc' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontSize: '18px' }}>{icon}</span>
+                              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>{app.appName}</span>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text)' }}>{fmtTime(app.seconds)}</span>
+                              <span style={{ fontSize: '10px', background: '#f1f5f9', color: 'var(--muted)', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>{pct}%</span>
+                            </div>
+                          </div>
+                          <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '99px', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', background: 'linear-gradient(90deg, #f97316, #fb923c)', borderRadius: '99px', width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
-                {/* Chrome Tab */}
                 {activeTab === 'chrome' && (
                   <div>
                     {chromeSites.length === 0 ? (
-                      <div className="p-8 text-center">
-                        <div className="text-3xl mb-2">🌐</div>
-                        <p className="text-sm text-[var(--muted)]">No Chrome activity tracked</p>
-                        <p className="text-xs text-[var(--subtle)] mt-1">Make sure Dart Chrome extension is installed</p>
+                      <div style={{ padding: '40px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '32px', marginBottom: '10px' }}>🌐</div>
+                        <p style={{ fontSize: '13px', color: 'var(--muted)' }}>No Chrome activity tracked</p>
+                        <p style={{ fontSize: '11px', color: 'var(--subtle)', marginTop: '4px' }}>Make sure Dart Chrome extension is installed</p>
                       </div>
-                    ) : (
-                      <div className="divide-y divide-[var(--border)]">
-                        {chromeSites.map((s: any) => {
-                          const pct = totalChromeSeconds > 0
-                            ? Math.round((s.seconds / totalChromeSeconds) * 100) : 0;
-                          return (
-                            <div key={s.site} className="px-4 py-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <img
-                                    src={`https://www.google.com/s2/favicons?domain=${s.site}&sz=16`}
-                                    className="w-4 h-4 rounded"
-                                    onError={(e) => (e.currentTarget.style.display = 'none')}
-                                  />
-                                  <span className="text-[13px] font-semibold text-[var(--text)]">{s.site}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-medium text-[var(--text)]">{fmtTime(s.seconds)}</span>
-                                  <span className="text-[11px] text-[var(--muted)] bg-[var(--surface2)] px-1.5 py-0.5 rounded">{pct}%</span>
-                                </div>
-                              </div>
-                              <div className="h-1.5 bg-[var(--surface2)] rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full" style={{ width: `${pct}%` }} />
-                              </div>
+                    ) : chromeSites.map((s: any) => {
+                      const pct = totalChromeSeconds > 0 ? Math.round((s.seconds / totalChromeSeconds) * 100) : 0;
+                      return (
+                        <div key={s.site} style={{ padding: '14px 20px', borderBottom: '1px solid #f8fafc' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <img src={`https://www.google.com/s2/favicons?domain=${s.site}&sz=16`} style={{ width: '16px', height: '16px', borderRadius: '3px' }} onError={(e) => (e.currentTarget.style.display = 'none')} />
+                              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>{s.site}</span>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text)' }}>{fmtTime(s.seconds)}</span>
+                              <span style={{ fontSize: '10px', background: '#f1f5f9', color: 'var(--muted)', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>{pct}%</span>
+                            </div>
+                          </div>
+                          <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '99px', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', background: 'linear-gradient(90deg, #3b82f6, #06b6d4)', borderRadius: '99px', width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
 
               {/* Idle Logs */}
               {detail.idleLogs?.length > 0 && (
-                <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] overflow-hidden">
-                  <div className="px-4 py-3 border-b border-[var(--border)]">
-                    <h3 className="text-xs font-bold text-[var(--muted)] tracking-widest uppercase">Idle Periods</h3>
+                <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+                  <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)', background: '#fafafa' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>⏸ Idle Periods</span>
                   </div>
-                  <div className="divide-y divide-[var(--border)]">
-                    {detail.idleLogs.map((log: any, i: number) => (
-                      <div key={i} className="px-4 py-2.5 flex items-center justify-between">
-                        <span className="text-[12px] text-[var(--text-soft)]">
-                          {new Date(log.idleFrom).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          {' → '}
-                          {new Date(log.idleTo).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        <span className="text-[12px] font-medium text-amber-500">{fmtTime(log.seconds)}</span>
-                      </div>
-                    ))}
-                  </div>
+                  {detail.idleLogs.map((log: any, i: number) => (
+                    <div key={i} style={{ padding: '10px 20px', borderBottom: '1px solid #f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-soft)' }}>
+                        {new Date(log.idleFrom).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {' → '}
+                        {new Date(log.idleTo).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#f59e0b' }}>{fmtTime(log.seconds)}</span>
+                    </div>
+                  ))}
                 </div>
               )}
             </>
@@ -308,5 +303,45 @@ export default function ActivityMonitorPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function MemberRow({ m, selected, onSelect, active }: { m: any; selected: any; onSelect: (m: any) => void; active: boolean }) {
+  const isSelected = selected?.id === m.id;
+  return (
+    <button
+      onClick={() => onSelect(m)}
+      style={{
+        width: '100%', padding: '10px 16px', textAlign: 'left', border: 'none', cursor: 'pointer',
+        background: isSelected ? '#fff7ed' : '#fff', transition: 'all 0.12s',
+        borderLeft: isSelected ? '3px solid var(--orange)' : '3px solid transparent',
+        display: 'flex', alignItems: 'center', gap: '10px',
+      }}
+      onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = '#fafafa'; }}
+      onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = '#fff'; }}
+    >
+      <div style={{
+        width: '34px', height: '34px', borderRadius: '10px', flexShrink: 0,
+        background: active ? 'linear-gradient(135deg, #f97316, #fb923c)' : '#f1f5f9',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: '12px', fontWeight: 800, color: active ? '#fff' : 'var(--muted)',
+      }}>
+        {m.avatar || m.name?.[0] || '?'}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
+        <div style={{ fontSize: '10px', color: 'var(--muted)' }}>{m.role}</div>
+      </div>
+      <div style={{ flexShrink: 0 }}>
+        {active ? (
+          <span style={{ fontSize: '11px', fontWeight: 700, color: '#16a34a', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+            {fmtTime(m.totalSeconds)}
+          </span>
+        ) : (
+          <span style={{ fontSize: '11px', color: 'var(--subtle)' }}>No data</span>
+        )}
+      </div>
+    </button>
   );
 }
