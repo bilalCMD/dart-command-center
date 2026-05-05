@@ -150,7 +150,7 @@ export async function GET(req: NextRequest) {
     // Get schedule label from override or company default
     const empSettings = await prisma.employeeSettings.findUnique({ where: { userId: targetUserId } });
     const companySettings = await prisma.companySettings.findUnique({ where: { id: 'default' } });
-    const scheduleHours = empSettings?.dailyHours || companySettings?.dailyHours || 8;
+    const scheduleHours = empSettings?.dailyHours || companySettings?.defaultDailyHours || 8;
 
     return NextResponse.json({
       userId: targetUserId,
