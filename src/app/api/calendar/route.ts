@@ -11,21 +11,48 @@ export async function GET(req: NextRequest) {
   const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString());
   const month = searchParams.get('month');
 
-  const start = month
-    ? new Date(year, parseInt(month) - 1, 1)
-    : new Date(year, 0, 1);
-  const end = month
-    ? new Date(year, parseInt(month), 1)
-    : new Date(year + 1, 0, 1);
+  const start = month ? new Date(year, parseInt(month) - 1, 1) : new Date(year, 0, 1);
+  const end   = month ? new Date(year, parseInt(month), 1)     : new Date(year + 1, 0, 1);
 
   const events = await prisma.companyCalendar.findMany({
     where: { date: { gte: start, lt: end } },
     orderBy: { date: 'asc' },
   });
 
-  return NextResponse.json({ events });
-}
+  const leaves = await prisma.leaveRequest.findMany({
+    where: {
+      status: 'APPROVED',
+      fromDate: { lt: end },
+      toDate:   { gte: start },
+    },
+    include: {
+      user: { select: { name: true, avatar: true } },
+    },
+  });
 
+  const leaveEvents: any[] = [];
+  for (const leave of leaves) {
+    const from = new Date(leave.fromDate);
+    const to   = new Date(leave.toDate);
+    const cur  = new Date(from);
+    while (cur <= to) {
+      if (cur >= start && cur < end) {
+        leaveEvents.push({
+          id:        `leave-${leave.id}-${cur.toISOString().split('T')[0]}`,
+          date:      new Date(cur),
+          title:     `${leave.user.name} — On Leave`,
+          type:      'LEAVE',
+          leaveType: leave.type,
+          userName:  leave.user.name,
+          avatar:    leave.user.avatar,
+        });
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+  }
+
+  return NextResponse.json({ events: [...events, ...leaveEvents] });
+}
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user || (session.user as any).role !== 'ADMIN') {

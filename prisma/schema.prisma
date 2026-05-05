@@ -46,7 +46,8 @@ model User {
   loginLogs         LoginLog[]
   appActivities     AppActivity[]
   idleLogs          IdleLog[]
-
+  salary            EmployeeSalary?
+  payrolls          Payroll[]
   @@index([email])
   @@index([role])
 }
@@ -390,4 +391,45 @@ model EmployeeSettings {
   isRemote      Boolean  @default(false)
   customNote    String?
   updatedAt     DateTime @default(now())
+}
+// ═══════════════════════════════════════
+// PAYROLL
+// ═══════════════════════════════════════
+
+model EmployeeSalary {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  monthlySalary Float
+  currency      String   @default("PKR")
+  effectiveFrom DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  updatedBy     String?
+}
+
+model Payroll {
+  id               String        @id @default(cuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id])
+  month            String        // "2026-05"
+  baseSalary       Float
+  workingDays      Int
+  presentDays      Int
+  absentDays       Int
+  leavedays        Int           @default(0)
+  shortHoursDays   Int           @default(0)
+  deductions       Float         @default(0)
+  deductionBreakdown Json?
+  finalSalary      Float
+  status           PayrollStatus @default(DRAFT)
+  generatedAt      DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@unique([userId, month])
+  @@index([userId, month])
+}
+
+enum PayrollStatus {
+  DRAFT
+  PUBLISHED
 }

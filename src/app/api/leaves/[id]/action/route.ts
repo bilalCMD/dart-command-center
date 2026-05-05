@@ -36,11 +36,16 @@ export async function PATCH(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
+    // Find admin user by email to get correct DB id
+    const adminUser = await prisma.user.findUnique({
+      where: { email: user!.email },
+    });
+
     const updated = await prisma.leaveRequest.update({
       where: { id: params.id },
       data: {
         status,
-        approver: { connect: { id: user!.id } },
+        ...(adminUser ? { approver: { connect: { id: adminUser.id } } } : {}),
       },
     });
 

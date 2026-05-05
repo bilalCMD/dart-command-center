@@ -1,11 +1,12 @@
 'use client';
 import { useState, useEffect } from 'react';
 
-const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-  HOLIDAY: { label: 'Holiday', color: 'text-red-500', bg: 'bg-red-500/10 border-red-500/20', icon: '🏖️' },
-  HALF_DAY: { label: 'Half Day', color: 'text-amber-500', bg: 'bg-amber-500/10 border-amber-500/20', icon: '🌤️' },
-  OPTIONAL: { label: 'Optional', color: 'text-blue-500', bg: 'bg-blue-500/10 border-blue-500/20', icon: '📌' },
-  EVENT: { label: 'Event', color: 'text-purple-500', bg: 'bg-purple-500/10 border-purple-500/20', icon: '🎉' },
+const TYPE_CONFIG: Record<string, { label: string; color: string; dot: string; pill: string }> = {
+  HOLIDAY:  { label: 'Holiday',  color: 'text-red-600',    dot: 'bg-red-500',    pill: 'bg-red-50 text-red-600 border-red-200' },
+  HALF_DAY: { label: 'Half Day', color: 'text-amber-600',  dot: 'bg-amber-500',  pill: 'bg-amber-50 text-amber-600 border-amber-200' },
+  OPTIONAL: { label: 'Optional', color: 'text-blue-600',   dot: 'bg-blue-500',   pill: 'bg-blue-50 text-blue-600 border-blue-200' },
+  EVENT:    { label: 'Event',    color: 'text-purple-600', dot: 'bg-purple-500', pill: 'bg-purple-50 text-purple-600 border-purple-200' },
+  LEAVE:    { label: 'On Leave', color: 'text-teal-600',   dot: 'bg-teal-500',   pill: 'bg-teal-50 text-teal-600 border-teal-200' },
 };
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -18,10 +19,11 @@ export default function AdminCalendarPage() {
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [form, setForm] = useState({ title: '', type: 'HOLIDAY', description: '', isRecurring: false });
   const [submitting, setSubmitting] = useState(false);
+  const [formDate, setFormDate] = useState('');
 
   useEffect(() => { fetchEvents(); }, [year, month]);
 
@@ -34,20 +36,22 @@ export default function AdminCalendarPage() {
   }
 
   async function handleAdd() {
-    if (!selectedDay || !form.title) return;
+    if (!formDate || !form.title) return;
     setSubmitting(true);
     await fetch('/api/calendar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, date: selectedDay.toISOString() }),
+      body: JSON.stringify({ ...form, date: new Date(formDate).toISOString() }),
     });
     setSubmitting(false);
     setShowForm(false);
     setForm({ title: '', type: 'HOLIDAY', description: '', isRecurring: false });
+    setFormDate('');
     fetchEvents();
   }
 
   async function handleDelete(id: string) {
+    if (id.startsWith('leave-')) return;
     setDeleting(id);
     await fetch('/api/calendar', {
       method: 'DELETE',
@@ -58,10 +62,9 @@ export default function AdminCalendarPage() {
     fetchEvents();
   }
 
-  // Calendar grid
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const cells = [];
+  const cells: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
@@ -86,135 +89,125 @@ export default function AdminCalendarPage() {
     else setMonth(m => m + 1);
   }
 
+  const selectedDayEvents = selectedDay ? getEventsForDay(selectedDay) : [];
+  const companyEvents = events.filter(e => e.type !== 'LEAVE');
+
   return (
-    <div className="space-y-5">
+    <div className="w-full">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-[var(--text)]">Company Calendar</h1>
-          <p className="text-sm text-[var(--muted)] mt-0.5">Holidays, events aur off days manage karo</p>
+          <h1 className="text-[26px] font-black text-[var(--text)] tracking-tight">Company Calendar</h1>
+          <p className="text-[13px] text-[var(--muted)] mt-0.5">Holidays, events aur off days manage karo</p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 rounded-lg dart-gradient text-white text-sm font-semibold"
-        >
-          {showForm ? '✕ Cancel' : '+ Add Event'}
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 bg-white border border-[var(--border)] rounded-xl p-1">
+            <button onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--surface2)] text-[var(--muted)] hover:text-[var(--text)] transition-all">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <span className="text-[13px] font-bold text-[var(--text)] px-3">{MONTHS[month]} {year}</span>
+            <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--surface2)] text-[var(--muted)] hover:text-[var(--text)] transition-all">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          </div>
+          <button onClick={() => setShowForm(!showForm)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl dart-gradient text-white text-[13px] font-bold shadow-md hover:opacity-90 transition-all">
+            {showForm ? (
+              <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>Cancel</>
+            ) : (
+              <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>Add Event</>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Add Form */}
       {showForm && (
-        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] p-5 space-y-4">
-          <h2 className="text-sm font-bold text-[var(--text)]">New Event</h2>
-          <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white rounded-2xl border border-[var(--border)] shadow-soft p-5 mb-5">
+          <p className="text-[13px] font-bold text-[var(--text)] mb-4">New Event</p>
+          <div className="grid grid-cols-3 gap-3 mb-3">
             <div>
-              <label className="text-xs text-[var(--muted)] mb-1 block">Date</label>
-              <input
-                type="date"
-                value={selectedDay ? selectedDay.toISOString().split('T')[0] : ''}
-                onChange={e => setSelectedDay(new Date(e.target.value))}
-                className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:border-[var(--orange)]"
-              />
+              <label className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider mb-1.5 block">Date</label>
+              <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)}
+                className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl px-3 py-2 text-[13px] text-[var(--text)] focus:outline-none focus:border-[var(--orange)]" />
             </div>
             <div>
-              <label className="text-xs text-[var(--muted)] mb-1 block">Type</label>
-              <select
-                value={form.type}
-                onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-                className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:border-[var(--orange)]"
-              >
-                {Object.entries(TYPE_CONFIG).map(([k, v]) => (
-                  <option key={k} value={k}>{v.icon} {v.label}</option>
+              <label className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider mb-1.5 block">Type</label>
+              <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
+                className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl px-3 py-2 text-[13px] text-[var(--text)] focus:outline-none focus:border-[var(--orange)]">
+                {Object.entries(TYPE_CONFIG).filter(([k]) => k !== 'LEAVE').map(([k, v]) => (
+                  <option key={k} value={k}>{v.label}</option>
                 ))}
               </select>
             </div>
+            <div>
+              <label className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider mb-1.5 block">Title</label>
+              <input type="text" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                placeholder="e.g. Eid ul Fitr..."
+                className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl px-3 py-2 text-[13px] text-[var(--text)] focus:outline-none focus:border-[var(--orange)]" />
+            </div>
           </div>
-          <div>
-            <label className="text-xs text-[var(--muted)] mb-1 block">Title</label>
-            <input
-              type="text"
-              value={form.title}
-              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              placeholder="e.g. Eid ul Fitr, Company Retreat..."
-              className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:border-[var(--orange)]"
-            />
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <label className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider mb-1.5 block">Description (optional)</label>
+              <input type="text" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Extra details..."
+                className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-xl px-3 py-2 text-[13px] text-[var(--text)] focus:outline-none focus:border-[var(--orange)]" />
+            </div>
+            <div className="flex items-end pb-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.isRecurring} onChange={e => setForm(f => ({ ...f, isRecurring: e.target.checked }))}
+                  className="w-4 h-4 accent-[var(--orange)]" />
+                <span className="text-[12px] text-[var(--muted)] font-semibold">Repeat every year</span>
+              </label>
+            </div>
           </div>
-          <div>
-            <label className="text-xs text-[var(--muted)] mb-1 block">Description (optional)</label>
-            <input
-              type="text"
-              value={form.description}
-              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              placeholder="Extra details..."
-              className="w-full bg-[var(--surface2)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] focus:outline-none focus:border-[var(--orange)]"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="recurring"
-              checked={form.isRecurring}
-              onChange={e => setForm(f => ({ ...f, isRecurring: e.target.checked }))}
-              className="w-4 h-4 accent-[var(--orange)]"
-            />
-            <label htmlFor="recurring" className="text-xs text-[var(--muted)]">Har saal repeat ho (recurring)</label>
-          </div>
-          <button
-            onClick={handleAdd}
-            disabled={submitting || !selectedDay || !form.title}
-            className="w-full py-2.5 rounded-lg dart-gradient text-white text-sm font-semibold disabled:opacity-50"
-          >
+          <button onClick={handleAdd} disabled={submitting || !formDate || !form.title}
+            className="px-6 py-2.5 rounded-xl dart-gradient text-white text-[13px] font-bold shadow-md disabled:opacity-50 hover:opacity-90 transition-all">
             {submitting ? 'Adding...' : 'Add Event'}
           </button>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Calendar */}
-        <div className="lg:col-span-2 bg-[var(--surface)] rounded-xl border border-[var(--border)] overflow-hidden">
-          {/* Month Nav */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
-            <button onClick={prevMonth} className="p-1.5 hover:bg-[var(--surface2)] rounded-lg text-[var(--muted)] hover:text-[var(--text)] transition-all">←</button>
-            <h2 className="text-sm font-bold text-[var(--text)]">{MONTHS[month]} {year}</h2>
-            <button onClick={nextMonth} className="p-1.5 hover:bg-[var(--surface2)] rounded-lg text-[var(--muted)] hover:text-[var(--text)] transition-all">→</button>
-          </div>
-
-          {/* Day Headers */}
+      <div className="grid grid-cols-12 gap-5">
+        {/* Calendar Grid */}
+        <div className="col-span-8 bg-white rounded-2xl border border-[var(--border)] shadow-soft overflow-hidden">
           <div className="grid grid-cols-7 border-b border-[var(--border)]">
             {DAYS.map(d => (
-              <div key={d} className="py-2 text-center text-[10px] font-bold text-[var(--muted)] uppercase">{d}</div>
+              <div key={d} className="py-3 text-center text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">{d}</div>
             ))}
           </div>
-
-          {/* Cells */}
           <div className="grid grid-cols-7">
             {cells.map((day, i) => {
-              if (!day) return <div key={`empty-${i}`} className="h-16 border-b border-r border-[var(--border)] opacity-20" />;
+              if (!day) return <div key={`e-${i}`} className="h-[88px] border-b border-r border-[var(--border)] bg-[var(--surface2)]/30" />;
               const dayEvents = getEventsForDay(day);
               const isHoliday = dayEvents.some(e => e.type === 'HOLIDAY');
+              const isSelected = selectedDay === day;
+              const isTdy = isToday(day);
               return (
-                <div
-                  key={day}
-                  onClick={() => {
-                    const d = new Date(year, month, day);
-                    setSelectedDay(d);
-                    setShowForm(true);
-                    setForm(f => ({ ...f }));
-                  }}
-                  className={`h-16 border-b border-r border-[var(--border)] p-1 cursor-pointer transition-all hover:bg-[var(--surface2)] ${isHoliday ? 'bg-red-500/5' : ''}`}
-                >
-                  <div className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${
-                    isToday(day) ? 'dart-gradient text-white' : 'text-[var(--text)]'
-                  }`}>{day}</div>
-                  <div className="mt-0.5 space-y-0.5">
-                    {dayEvents.slice(0, 2).map((e, idx) => {
-                      const cfg = TYPE_CONFIG[e.type];
+                <div key={day} onClick={() => setSelectedDay(day === selectedDay ? null : day)}
+                  className={`h-[88px] border-b border-r border-[var(--border)] p-2 cursor-pointer transition-all
+                    ${isHoliday ? 'bg-red-50/60' : ''}
+                    ${isSelected ? 'bg-[var(--surface2)] ring-2 ring-inset ring-[var(--orange)]' : 'hover:bg-[var(--surface2)]/60'}
+                  `}>
+                  <div className={`text-[12px] font-bold w-7 h-7 flex items-center justify-center rounded-full mb-1
+                    ${isTdy ? 'dart-gradient text-white shadow-sm' : 'text-[var(--text)]'}
+                  `}>{day}</div>
+                  <div className="space-y-0.5">
+                    {dayEvents.slice(0, 3).map((e, idx) => {
+                      const cfg = TYPE_CONFIG[e.type] || TYPE_CONFIG.EVENT;
                       return (
-                        <div key={idx} className={`text-[9px] font-medium px-1 rounded truncate ${cfg.color} bg-[var(--surface2)]`}>
-                          {cfg.icon} {e.title}
+                        <div key={idx} className="flex items-center gap-1">
+                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
+                          <span className={`text-[9px] font-semibold truncate ${cfg.color}`}>
+                            {e.type === 'LEAVE' ? e.userName?.split(' ')[0] : e.title}
+                          </span>
                         </div>
                       );
                     })}
+                    {dayEvents.length > 3 && (
+                      <span className="text-[9px] text-[var(--muted)] font-semibold">+{dayEvents.length - 3} more</span>
+                    )}
                   </div>
                 </div>
               );
@@ -222,53 +215,101 @@ export default function AdminCalendarPage() {
           </div>
         </div>
 
-        {/* Events List */}
-        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] overflow-hidden">
-          <div className="px-4 py-3 border-b border-[var(--border)]">
-            <h3 className="text-xs font-bold text-[var(--muted)] uppercase tracking-widest">
-              {MONTHS[month]} Events ({events.length})
-            </h3>
-          </div>
-          {loading ? (
-            <div className="p-6 text-center text-sm text-[var(--muted)]">Loading...</div>
-          ) : events.length === 0 ? (
-            <div className="p-6 text-center">
-              <div className="text-3xl mb-2">📅</div>
-              <p className="text-sm text-[var(--muted)]">Koi event nahi</p>
-              <p className="text-xs text-[var(--subtle)] mt-1">Calendar mein din click karo</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-[var(--border)]">
-              {events.map((e: any) => {
-                const cfg = TYPE_CONFIG[e.type];
-                const d = new Date(e.date);
-                return (
-                  <div key={e.id} className="px-4 py-3 flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2">
-                      <span className="text-lg mt-0.5">{cfg.icon}</span>
-                      <div>
-                        <p className="text-[13px] font-semibold text-[var(--text)]">{e.title}</p>
-                        <p className="text-[11px] text-[var(--muted)]">
-                          {d.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </p>
-                        {e.description && <p className="text-[11px] text-[var(--subtle)] mt-0.5">{e.description}</p>}
-                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${cfg.bg} ${cfg.color} mt-1 inline-block`}>
-                          {cfg.label} {e.isRecurring ? '· Recurring' : ''}
-                        </span>
+        {/* Right Panel */}
+        <div className="col-span-4 space-y-4">
+          {/* Selected day */}
+          {selectedDay && (
+            <div className="bg-white rounded-2xl border border-[var(--border)] shadow-soft overflow-hidden">
+              <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--surface2)] flex items-center justify-between">
+                <p className="text-[11px] font-bold text-[var(--text)] uppercase tracking-[0.1em]">{MONTHS[month]} {selectedDay}</p>
+                <span className="text-[10px] text-[var(--muted)] font-semibold">{selectedDayEvents.length} events</span>
+              </div>
+              {selectedDayEvents.length === 0 ? (
+                <div className="px-4 py-5 text-center text-[12px] text-[var(--muted)]">No events — click Add Event to create one</div>
+              ) : (
+                <div className="divide-y divide-[var(--border)]">
+                  {selectedDayEvents.map((e: any, i) => {
+                    const cfg = TYPE_CONFIG[e.type] || TYPE_CONFIG.EVENT;
+                    const isLeave = e.type === 'LEAVE';
+                    return (
+                      <div key={i} className="px-4 py-3 flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12px] font-semibold text-[var(--text)] truncate">{e.title}</p>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${cfg.pill}`}>{cfg.label}</span>
+                        </div>
+                        {!isLeave && (
+                          <button onClick={() => handleDelete(e.id)} disabled={deleting === e.id}
+                            className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-red-50 text-[var(--subtle)] hover:text-red-500 transition-all shrink-0">
+                            {deleting === e.id ? '...' : (
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            )}
+                          </button>
+                        )}
                       </div>
-                    </div>
-                    <button
-                      onClick={() => handleDelete(e.id)}
-                      disabled={deleting === e.id}
-                      className="text-[var(--subtle)] hover:text-red-500 transition-colors text-xs shrink-0"
-                    >
-                      {deleting === e.id ? '...' : '✕'}
-                    </button>
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
+
+          {/* Events List */}
+          <div className="bg-white rounded-2xl border border-[var(--border)] shadow-soft overflow-hidden">
+            <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--surface2)] flex items-center justify-between">
+              <p className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-[0.12em]">{MONTHS[month]} Events</p>
+              <span className="text-[10px] font-bold text-[var(--muted)] bg-[var(--border)] px-2 py-0.5 rounded-full">{companyEvents.length}</span>
+            </div>
+            {loading ? (
+              <div className="px-4 py-6 text-center text-[12px] text-[var(--muted)]">Loading...</div>
+            ) : companyEvents.length === 0 ? (
+              <div className="px-4 py-8 text-center">
+                <p className="text-[13px] font-semibold text-[var(--text)] mb-1">No events yet</p>
+                <p className="text-[11px] text-[var(--muted)]">Click a day or use Add Event</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--border)] max-h-[400px] overflow-y-auto">
+                {companyEvents.map((e: any) => {
+                  const cfg = TYPE_CONFIG[e.type] || TYPE_CONFIG.EVENT;
+                  const d = new Date(e.date);
+                  return (
+                    <div key={e.id} className="px-4 py-3 flex items-center gap-3 hover:bg-[var(--surface2)] transition-colors">
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-semibold text-[var(--text)] truncate">{e.title}</p>
+                        <p className="text-[10px] text-[var(--muted)]">
+                          {d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                          {e.isRecurring ? ' · Recurring' : ''}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${cfg.pill}`}>{cfg.label}</span>
+                        <button onClick={() => handleDelete(e.id)} disabled={deleting === e.id}
+                          className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-red-50 text-[var(--subtle)] hover:text-red-500 transition-all">
+                          {deleting === e.id ? '...' : (
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Legend */}
+          <div className="bg-white rounded-2xl border border-[var(--border)] shadow-soft p-4">
+            <p className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-[0.12em] mb-3">Legend</p>
+            <div className="space-y-2">
+              {Object.entries(TYPE_CONFIG).map(([k, v]) => (
+                <div key={k} className="flex items-center gap-2.5">
+                  <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${v.dot}`} />
+                  <span className="text-[12px] font-semibold text-[var(--text)]">{v.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

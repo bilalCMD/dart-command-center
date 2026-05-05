@@ -29,6 +29,7 @@ const EMPLOYEE_NAV = [
   { href: '/tasks', label: 'Notion Tasks', icon: CheckSquare },
   { href: '/score', label: 'My Score', icon: Star },
   { href: '/calendar', label: 'Calendar', icon: CalendarFold },
+  { href: '/employee/payroll', label: 'My Payslip', icon: FileText },
 ];
 
 const ADMIN_NAV = [
@@ -43,6 +44,7 @@ const ADMIN_NAV = [
   { href: '/tasks', label: 'Notion Tasks', icon: CheckSquare },
   { href: '/admin-badges', label: 'Manage Badges', icon: Award },
   { href: '/admin-calendar', label: 'Company Calendar', icon: CalendarFold },
+  { href: '/admin/payroll', label: 'Payroll', icon: LayoutDashboard },
   { href: '/admin-settings', label: 'Settings', icon: Settings2 },
 ];
 

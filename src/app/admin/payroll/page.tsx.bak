@@ -1,0 +1,253 @@
+"use client";
+import { useEffect, useState } from "react";
+
+interface Employee {
+  id: string;
+  name: string;
+  email: string;
+  salary: { monthlySalary: number } | null;
+}
+
+interface Payroll {
+  id: string;
+  month: string;
+  baseSalary: number;
+  presentDays: number;
+  absentDays: number;
+  workingDays: number;
+  deductions: number;
+  finalSalary: number;
+  status: string;
+}
+
+export default function AdminPayrollPage() {
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [selectedEmp, setSelectedEmp] = useState<Employee | null>(null);
+  const [salary, setSalary] = useState("");
+  const [month, setMonth] = useState("2026-05");
+  const [payroll, setPayroll] = useState<Payroll | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    fetch("/api/payroll/admin")
+      .then((r) => r.json())
+      .then(setEmployees);
+  }, []);
+
+  const saveSalary = async () => {
+    if (!selectedEmp || !salary) return;
+    setLoading(true);
+    const res = await fetch("/api/payroll/admin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: selectedEmp.id,
+        monthlySalary: salary,
+      }),
+    });
+    if (res.ok) {
+      setMsg("✅ Salary save ho gayi!");
+      const updated = await fetch("/api/payroll/admin").then((r) => r.json());
+      setEmployees(updated);
+    }
+    setLoading(false);
+  };
+
+  const generatePayroll = async () => {
+    if (!selectedEmp || !month) return;
+    setLoading(true);
+    setMsg("");
+    const res = await fetch("/api/payroll/admin/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: selectedEmp.id, month }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setPayroll(data);
+      setMsg("✅ Payroll generate ho gayi!");
+    } else {
+      setMsg("❌ " + data.error);
+    }
+    setLoading(false);
+  };
+
+  const publishPayroll = async () => {
+    if (!payroll) return;
+    setLoading(true);
+    const res = await fetch("/api/payroll/admin/publish", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payrollId: payroll.id }),
+    });
+    if (res.ok) {
+      setMsg("✅ Payroll publish ho gayi! Employee dekh sakta hai.");
+      setPayroll({ ...payroll, status: "PUBLISHED" });
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6">💰 Payroll Management</h1>
+
+      {/* Employee List */}
+      <div className="bg-white rounded-xl shadow p-4 mb-6">
+        <h2 className="font-semibold text-lg mb-3">Employees</h2>
+        <div className="space-y-2">
+          {employees.map((emp) => (
+            <div
+              key={emp.id}
+              onClick={() => {
+                setSelectedEmp(emp);
+                setSalary(emp.salary?.monthlySalary?.toString() || "");
+                setPayroll(null);
+                setMsg("");
+              }}
+              className={`flex justify-between items-center p-3 rounded-lg cursor-pointer border ${
+                selectedEmp?.id === emp.id
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-gray-200 hover:bg-gray-50"
+              }`}
+            >
+              <div>
+                <p className="font-medium">{emp.name}</p>
+                <p className="text-sm text-gray-500">{emp.email}</p>
+              </div>
+              <div className="text-right">
+                {emp.salary ? (
+                  <span className="text-green-600 font-semibold">
+                    PKR {emp.salary.monthlySalary.toLocaleString()}
+                  </span>
+                ) : (
+                  <span className="text-red-400 text-sm">No salary set</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Selected Employee Actions */}
+      {selectedEmp && (
+        <div className="bg-white rounded-xl shadow p-4 mb-6">
+          <h2 className="font-semibold text-lg mb-4">
+            {selectedEmp.name} — Settings
+          </h2>
+
+          {/* Set Salary */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">
+              Monthly Salary (PKR)
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={salary}
+                onChange={(e) => setSalary(e.target.value)}
+                placeholder="e.g. 50000"
+                className="border rounded-lg px-3 py-2 flex-1"
+              />
+              <button
+                onClick={saveSalary}
+                disabled={loading}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+
+          {/* Generate Payroll */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">
+              Payroll Month
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="month"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                className="border rounded-lg px-3 py-2 flex-1"
+              />
+              <button
+                onClick={generatePayroll}
+                disabled={loading}
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+              >
+                Generate
+              </button>
+            </div>
+          </div>
+
+          {msg && <p className="text-sm mt-2">{msg}</p>}
+        </div>
+      )}
+
+      {/* Payroll Preview */}
+      {payroll && (
+        <div className="bg-white rounded-xl shadow p-4">
+          <h2 className="font-semibold text-lg mb-4">
+            Payroll Preview — {payroll.month}
+          </h2>
+          <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <p className="text-gray-500">Base Salary</p>
+              <p className="font-semibold">
+                PKR {payroll.baseSalary.toLocaleString()}
+              </p>
+            </div>
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <p className="text-gray-500">Working Days</p>
+              <p className="font-semibold">{payroll.workingDays}</p>
+            </div>
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <p className="text-gray-500">Present Days</p>
+              <p className="font-semibold text-green-600">
+                {payroll.presentDays}
+              </p>
+            </div>
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <p className="text-gray-500">Absent Days</p>
+              <p className="font-semibold text-red-500">{payroll.absentDays}</p>
+            </div>
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <p className="text-gray-500">Deductions</p>
+              <p className="font-semibold text-red-500">
+                - PKR {payroll.deductions.toLocaleString()}
+              </p>
+            </div>
+            <div className="bg-green-50 p-3 rounded-lg">
+              <p className="text-gray-500">Final Salary</p>
+              <p className="font-bold text-green-600 text-lg">
+                PKR {payroll.finalSalary.toLocaleString()}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span
+              className={`px-3 py-1 rounded-full text-sm font-medium ${
+                payroll.status === "PUBLISHED"
+                  ? "bg-green-100 text-green-700"
+                  : "bg-yellow-100 text-yellow-700"
+              }`}
+            >
+              {payroll.status}
+            </span>
+            {payroll.status === "DRAFT" && (
+              <button
+                onClick={publishPayroll}
+                disabled={loading}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+              >
+                Publish to Employee
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

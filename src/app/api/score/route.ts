@@ -2,25 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAuth } from '@/lib/session';
 
-// Special 6-hour employees
-const SIX_HOUR_EMPLOYEES = [
-  'ahad@dartmarketing.io',
-  'urooj@dartmarketing.io',
-];
-
-function getRequiredHours(date: Date, userEmail: string): number {
+async function getRequiredHours(date: Date, userEmail: string, userId: string): Promise<number> {
   const day = date.getDay();
-  // Weekend = off (0 required, but bonus if they work)
   if (day === 0 || day === 6) return 0;
-  // Special employees = 6 hours
-  if (SIX_HOUR_EMPLOYEES.includes(userEmail.toLowerCase())) return 6;
-  // Everyone else = 8 hours
+
+  // Check employee override first
+  const empSettings = await prisma.employeeSettings.findUnique({ where: { userId } });
+  if (empSettings?.dailyHours) return empSettings.dailyHours;
+
+  // Then company default
+  const companySettings = await prisma.companySettings.findUnique({ where: { id: 'default' } });
+  if (companySettings?.dailyHours) return companySettings.dailyHours;
+
   return 8;
 }
 
 function getBonus(worked: number, required: number): number {
   if (required === 0) {
-    // Weekend — pure bonus
     if (worked >= 6) return 15;
     if (worked >= 4) return 10;
     if (worked >= 2) return 5;
@@ -36,7 +34,6 @@ function getBonus(worked: number, required: number): number {
 
 function calcDayScore(workedHours: number, requiredHours: number): number {
   if (requiredHours === 0) {
-    // Weekend — no penalty, only bonus
     return Math.min(100, getBonus(workedHours, 0));
   }
   const pct = workedHours / requiredHours;
@@ -61,7 +58,6 @@ export async function GET(req: NextRequest) {
       ? searchParams.get('userId')!
       : u.id;
 
-    // Get target user email
     const targetUser = await prisma.user.findUnique({
       where: { id: targetUserId },
       select: { email: true, name: true },
@@ -79,7 +75,6 @@ export async function GET(req: NextRequest) {
       orderBy: { timestamp: 'asc' },
     });
 
-    // Group by date
     const byDate: Record<string, any[]> = {};
     for (const e of events) {
       const key = e.timestamp.toISOString().split('T')[0];
@@ -93,7 +88,7 @@ export async function GET(req: NextRequest) {
 
     for (const [date, dayEvents] of Object.entries(byDate)) {
       const d = new Date(date);
-      const required = getRequiredHours(d, targetEmail);
+      const required = await getRequiredHours(d, targetEmail, targetUserId);
       let workedSeconds = 0;
       let clockIn: Date | null = null;
 
@@ -124,7 +119,6 @@ export async function GET(req: NextRequest) {
         label: isWeekend ? 'Weekend Bonus' : undefined,
       });
 
-      // Only count working days for avg score
       if (!isWeekend) {
         totalScore += score;
         totalWorkingDays++;
@@ -135,7 +129,6 @@ export async function GET(req: NextRequest) {
       ? Math.round(totalScore / totalWorkingDays)
       : 0;
 
-    // EOD compliance
     const eodReports = await prisma.eodReport.findMany({
       where: { userId: targetUserId, date: { gte: startOfMonth } },
     });
@@ -144,10 +137,8 @@ export async function GET(req: NextRequest) {
       ? Math.round((eodDays / totalWorkingDays) * 100)
       : 0;
 
-    // Final score = 70% attendance + 30% EOD
     const finalScore = Math.round(avgScore * 0.7 + eodPct * 0.3);
 
-    // All users for admin
     let allUsers = null;
     if (isAdmin) {
       allUsers = await prisma.user.findMany({
@@ -155,6 +146,11 @@ export async function GET(req: NextRequest) {
         select: { id: true, name: true, avatar: true, email: true },
       });
     }
+
+    // Get schedule label from override or company default
+    const empSettings = await prisma.employeeSettings.findUnique({ where: { userId: targetUserId } });
+    const companySettings = await prisma.companySettings.findUnique({ where: { id: 'default' } });
+    const scheduleHours = empSettings?.dailyHours || companySettings?.dailyHours || 8;
 
     return NextResponse.json({
       userId: targetUserId,
@@ -169,7 +165,7 @@ export async function GET(req: NextRequest) {
       eodDays,
       dailyScores: dailyScores.slice(-30),
       allUsers,
-      schedule: SIX_HOUR_EMPLOYEES.includes(targetEmail.toLowerCase()) ? '6h' : '8h',
+      schedule: `${scheduleHours}h`,
     });
   } catch (err: any) {
     console.error('Score error:', err);

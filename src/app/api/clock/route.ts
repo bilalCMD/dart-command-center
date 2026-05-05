@@ -54,7 +54,18 @@ function getSequenceError(lastType: string | null, requestedType: string): strin
   }
   return 'Invalid action for current state.';
 }
-
+async function getShiftCutoff(userId: string): Promise<Date> {
+  const empSettings = await prisma.employeeSettings.findUnique({ where: { userId } });
+  const shiftStart = empSettings?.workStartTime || '09:00';
+  const [hours, minutes] = shiftStart.split(':').map(Number);
+  const now = new Date();
+  const cutoff = new Date();
+  cutoff.setHours(hours, minutes, 0, 0);
+  if (now < cutoff) {
+    cutoff.setDate(cutoff.getDate() - 1);
+  }
+  return cutoff;
+}
 // Calculate today's working time + break time
 function calculateToday(events: any[]) {
   let workingSeconds = 0;
@@ -122,7 +133,7 @@ export async function POST(req: NextRequest) {
 
     // Get last event TODAY
 // Get last event within 20 hours (handles night shifts crossing midnight)
-    const since = new Date(Date.now() - 20 * 60 * 60 * 1000);
+    const since = await getShiftCutoff(user!.id);
 
     const lastEvent = await prisma.clockEvent.findFirst({
       where: {
