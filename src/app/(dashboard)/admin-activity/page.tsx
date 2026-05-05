@@ -82,19 +82,31 @@ export default function ActivityMonitorPage() {
           <h1 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text)', margin: 0 }}>Activity Monitor</h1>
           <p style={{ fontSize: '13px', color: 'var(--muted)', margin: '4px 0 0' }}>Track employee app usage & idle time</p>
         </div>
-        <input
-          type="date"
-          value={date}
-          onChange={e => { setDate(e.target.value); setSelected(null); setDetail(null); }}
-          style={{
-            background: '#fff', border: '1px solid var(--border)', borderRadius: '10px',
-            padding: '8px 12px', fontSize: '13px', color: 'var(--text)',
-            outline: 'none', cursor: 'pointer',
-          }}
-        />
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            onClick={() => { fetchMembers(); if (selected) fetchDetail(selected.id); }}
+            style={{
+              padding: '8px 14px', borderRadius: '10px', border: '1px solid var(--border)',
+              background: '#fff', fontSize: '12px', fontWeight: 600, color: 'var(--text)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
+            }}
+          >
+            🔄 Refresh
+          </button>
+          <input
+            type="date"
+            value={date}
+            onChange={e => { setDate(e.target.value); setSelected(null); setDetail(null); }}
+            style={{
+              background: '#fff', border: '1px solid var(--border)', borderRadius: '10px',
+              padding: '8px 12px', fontSize: '13px', color: 'var(--text)',
+              outline: 'none', cursor: 'pointer',
+            }}
+          />
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '16px' }}>
         {/* Members List */}
         <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--border)', overflow: 'hidden' }}>
           {/* Active count header */}
