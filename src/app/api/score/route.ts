@@ -12,7 +12,7 @@ async function getRequiredHours(date: Date, userEmail: string, userId: string): 
 
   // Then company default
   const companySettings = await prisma.companySettings.findUnique({ where: { id: 'default' } });
-  if (companySettings?.dailyHours) return companySettings.dailyHours;
+  if (companySettings?.defaultDailyHours) return companySettings.defaultDailyHours;
 
   return 8;
 }
