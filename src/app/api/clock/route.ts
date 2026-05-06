@@ -189,9 +189,28 @@ export async function POST(req: NextRequest) {
       });
     }
     // For other invalid sequences, show error
+// For other invalid sequences
     else {
       const allowedNext = ALLOWED_NEXT[lastType] || [];
       if (!allowedNext.includes(type)) {
+        // 🔥 SMART HANDLE: For CLOCK_OUT, force succeed
+        if (type === 'CLOCK_OUT') {
+          // Force create CLOCK_OUT regardless
+          const event = await prisma.clockEvent.create({
+            data: { userId: user!.id, type: 'CLOCK_OUT', note: note || 'Force clock-out' },
+          });
+          return NextResponse.json({
+            event,
+            todaySummary: {
+              workingSeconds: 0,
+              breakSeconds: 0,
+              totalSeconds: 0,
+              isClockedIn: false,
+              isOnBreak: false,
+            },
+            message: 'Clocked out successfully',
+          });
+        }
         return NextResponse.json(
           { error: getSequenceError(lastEvent?.type || null, type) },
           { status: 400 }
