@@ -18,6 +18,7 @@ import {
   TrendingUp,
   CalendarFold,
   Settings2,
+  Package,
 } from 'lucide-react';
 
 const EMPLOYEE_NAV = [
@@ -30,6 +31,7 @@ const EMPLOYEE_NAV = [
   { href: '/score', label: 'My Score', icon: Star },
   { href: '/calendar', label: 'Calendar', icon: CalendarFold },
   { href: '/employee/payroll', label: 'My Payslip', icon: FileText },
+  { href: '/admin-assets', label: 'Asset Management', icon: Package },
 ];
 
 const ADMIN_NAV = [
@@ -43,6 +45,7 @@ const ADMIN_NAV = [
   { href: '/admin-leave', label: 'Leave Management', icon: Plane },
   { href: '/tasks', label: 'Notion Tasks', icon: CheckSquare },
   { href: '/admin-badges', label: 'Manage Badges', icon: Award },
+  { href: '/admin-assets', label: 'Asset Management', icon: Package },
   { href: '/admin-calendar', label: 'Company Calendar', icon: CalendarFold },
   { href: '/admin/payroll', label: 'Payroll', icon: LayoutDashboard },
   { href: '/admin-settings', label: 'Settings', icon: Settings2 },

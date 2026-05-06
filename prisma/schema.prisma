@@ -31,6 +31,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   lastLoginAt   DateTime?
 
+
   // Relations
   clockEvents       ClockEvent[]
   activityLogs      ActivityLog[]
@@ -48,6 +49,8 @@ model User {
   idleLogs          IdleLog[]
   salary            EmployeeSalary?
   payrolls          Payroll[]
+  assets         Asset[]        @relation("UserAssets")
+  assetRequests  AssetRequest[] @relation("UserAssetRequests")
   @@index([email])
   @@index([role])
 }
@@ -432,4 +435,38 @@ model Payroll {
 enum PayrollStatus {
   DRAFT
   PUBLISHED
+}
+model Asset {
+  id             String    @id @default(uuid())
+  name           String
+  tagId          String?   @unique
+  photoUrl       String?
+  category       String
+  brand          String?
+  model          String?
+  serialNumber   String?
+  condition      String    @default("Good")
+  status         String    @default("Available")
+  assignedTo     String?
+  assignedUser   User?     @relation("UserAssets", fields: [assignedTo], references: [id])
+  assignedAt     DateTime?
+  purchaseDate   DateTime?
+  purchasePrice  Decimal?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  requests       AssetRequest[]
+}
+
+model AssetRequest {
+  id          String   @id @default(uuid())
+  assetId     String?
+  asset       Asset?   @relation(fields: [assetId], references: [id])
+  userId      String
+  user        User     @relation("UserAssetRequests", fields: [userId], references: [id])
+  type        String
+  description String
+  status      String   @default("PENDING")
+  adminNote   String?
+  createdAt   DateTime @default(now())
 }

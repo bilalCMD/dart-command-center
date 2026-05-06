@@ -156,7 +156,7 @@ function showClockInPopup() {
   const { ipcRenderer } = require('electron');
   function updateTime() {
     const now = new Date();
-    document.getElementById('time').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+    document.getElementById('time').textContent = now.toLocaleTimeString('en-US', { hour12: true });
     document.getElementById('date').textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   }
   updateTime();
@@ -302,12 +302,20 @@ app.whenReady().then(() => {
 });
 
 ipcMain.on('popup-clock-in', async () => {
+  console.log('Popup clock in clicked, cookie:', currentCookie ? 'YES' : 'NO');
   const status = await clockRequest('CLOCK_IN', 'Manual - popup');
+  console.log('Popup clock in status:', status);
   if (popupWindow && !popupWindow.isDestroyed()) {
-    if (status === 200) {
+    if (status === 200 || status === 400) {
       popupWindow.webContents.send('clock-success');
     } else {
-      popupWindow.close();
+      setTimeout(async () => {
+        const retry = await clockRequest('CLOCK_IN', 'Manual - popup retry');
+        console.log('Retry status:', retry);
+        if (popupWindow && !popupWindow.isDestroyed()) {
+          popupWindow.webContents.send('clock-success');
+        }
+      }, 2000);
     }
   }
 });
