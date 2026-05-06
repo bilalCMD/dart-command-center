@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, session, powerMonitor } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, session, powerMonitor, Notification } = require('electron');
 const path = require('path');
 const https = require('https');
 const { startTracking, stopTracking, setSessionCookie } = require('./tracker/index');
@@ -256,7 +256,7 @@ app.whenReady().then(() => {
       trackerStarted = true;
       clearInterval(tryStartTracker);
       console.log('✅ Cookie ready, starting tracker...');
-      startTracking(BASE_URL, mainWindow);
+      startTracking(BASE_URL, mainWindow, app, powerMonitor);
     }
   }, 3000);
 
@@ -266,7 +266,8 @@ app.whenReady().then(() => {
       trackerStarted = true;
       clearInterval(tryStartTracker);
       console.log('⚠️ Starting tracker without cookie (fallback)');
-      startTracking(BASE_URL, mainWindow);
+      console.log('⚠️ Starting tracker without cookie (fallback)');
+      startTracking(BASE_URL, mainWindow, app, powerMonitor);
     }
   }, 30000);
 
@@ -325,7 +326,21 @@ ipcMain.on('popup-skip', () => {
     popupWindow.close();
   }
 });
+// Tracker notifications - Break warning
+ipcMain.on('show-notification', (_, msg) => {
+  if (Notification.isSupported()) {
+    new Notification({ 
+      title: msg.title || 'Dart Command Center', 
+      body: msg.message,
+      silent: false 
+    }).show();
+  }
+});
 
+// Show clock-in prompt from tracker
+ipcMain.on('show-clock-in-prompt', () => {
+  showClockInPopup();
+});
 app.on('window-all-closed', (e) => { e.preventDefault(); });
 
 app.on('before-quit', async () => {

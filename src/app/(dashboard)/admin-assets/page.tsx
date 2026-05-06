@@ -331,7 +331,58 @@ export default function AdminAssetsPage() {
             <div className="grid grid-cols-2 gap-3">
               <input placeholder="Asset Name *" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="border p-2 rounded text-sm" />
               <input placeholder="Tag ID" value={form.tagId} onChange={e => setForm({...form, tagId: e.target.value})} className="border p-2 rounded text-sm" />
-              <input placeholder="Photo URL" value={form.photoUrl} onChange={e => setForm({...form, photoUrl: e.target.value})} className="border p-2 rounded text-sm col-span-2" />
+              <div className="col-span-2">
+                <label className="text-xs font-semibold text-gray-700 block mb-2">Photo</label>
+                <div className="flex gap-2 items-start">
+                  {form.photoUrl && (
+                    <img src={form.photoUrl} alt="Preview" className="w-20 h-20 object-cover rounded border" />
+                  )}
+                  <div className="flex-1 flex flex-col gap-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      id="photo-upload"
+                      style={{ display: 'none' }}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const fd = new FormData();
+                        fd.append('file', file);
+                        const btn = document.getElementById('upload-btn');
+                        if (btn) btn.textContent = '⏳ Uploading...';
+try {
+                          const res = await fetch('/api/upload', { method: 'POST', body: fd });
+                          const data = await res.json();
+                          if (data.url) {
+                            setForm(prev => ({ ...prev, photoUrl: data.url }));
+                            alert('✅ Photo uploaded! Now fill the rest and click Save.');
+                          } else {
+                            alert('Upload failed: ' + (data.error || 'Unknown'));
+                          }
+                        } catch (err: any) {
+                          alert('Upload error: ' + err.message);
+                        } finally {
+                          if (btn) btn.textContent = '📷 Take Photo / Upload';
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor="photo-upload"
+                      id="upload-btn"
+                      className="cursor-pointer bg-blue-600 text-white text-center py-2 px-3 rounded text-sm hover:bg-blue-700"
+                    >
+                      📷 Take Photo / Upload
+                    </label>
+                    <input
+                      placeholder="Or paste image URL"
+                      value={form.photoUrl}
+                      onChange={e => setForm({...form, photoUrl: e.target.value})}
+                      className="border p-2 rounded text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
               <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="border p-2 rounded text-sm">
                 <option>Laptop</option><option>Desktop</option><option>Phone</option><option>Tablet</option>
                 <option>Monitor</option><option>Headphones</option><option>Keyboard</option><option>Mouse</option>

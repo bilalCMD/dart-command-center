@@ -3,6 +3,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from '@/components/sidebar';
+import SessionWatcher from '@/components/SessionWatcher';
 
 function PageLoader() {
   return (
@@ -18,7 +19,6 @@ function PageLoader() {
         alt="Dart"
         style={{ height: '36px', animation: 'pulse 1s ease-in-out infinite' }}
       />
-      {/* Progress bar */}
       <div style={{ width: '120px', height: '3px', background: '#f1f5f9', borderRadius: '99px', overflow: 'hidden' }}>
         <div style={{
           height: '100%',
@@ -65,6 +65,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isAdminView, setIsAdminView] = useState(false);
   const [loading, setLoading] = useState(false);
   const [prevPath, setPrevPath] = useState(pathname);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -77,15 +78,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [session]);
 
-  // Show loader when path changes
   useEffect(() => {
     if (pathname !== prevPath) {
       setLoading(false);
       setPrevPath(pathname);
+      setMobileMenuOpen(false);
     }
   }, [pathname]);
 
-  // Listen for link clicks
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       const target = (e.target as HTMLElement).closest('a');
@@ -112,10 +112,59 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   return (
-    <div className="flex min-h-screen bg-[var(--bg)] text-[var(--text)] font-body">
+    <div className="flex flex-col md:flex-row min-h-screen bg-[var(--bg)] text-[var(--text)] font-body">
+      <SessionWatcher />
       {loading && <PageLoader />}
-      <Sidebar user={sessionUser} isAdmin={isAdminView} setIsAdmin={setIsAdminView} />
-      <main className="flex-1 p-5 overflow-y-auto max-h-screen">
+
+      {/* Mobile Header - only visible on small screens */}
+      <div className="md:hidden bg-white border-b border-[var(--border)] px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 flex items-center justify-center">
+            <img src="/dart-logo.png" alt="Dart" className="h-full w-full object-contain" />
+          </div>
+          <div>
+            <div className="text-sm font-bold leading-tight">Dart</div>
+            <div className="text-[8px] text-[var(--muted)] uppercase tracking-wider font-bold">Command Center</div>
+          </div>
+        </div>
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          aria-label="Menu"
+        >
+          {mobileMenuOpen ? (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          ) : (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          )}
+        </button>
+      </div>
+
+      {/* Mobile Backdrop */}
+      {mobileMenuOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={`
+        ${mobileMenuOpen ? 'fixed left-0 top-0 bottom-0 z-50' : 'hidden'}
+        md:relative md:block md:z-auto
+      `}>
+        <Sidebar user={sessionUser} isAdmin={isAdminView} setIsAdmin={setIsAdminView} />
+      </div>
+
+      {/* Main Content */}
+      <main className="flex-1 p-3 md:p-5 overflow-y-auto md:max-h-screen">
         <Suspense fallback={
           <div className="flex items-center justify-center py-20">
             <div className="flex gap-1">

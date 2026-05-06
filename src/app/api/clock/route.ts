@@ -54,6 +54,7 @@ function getSequenceError(lastType: string | null, requestedType: string): strin
   }
   return 'Invalid action for current state.';
 }
+
 async function getShiftCutoff(userId: string): Promise<Date> {
   const empSettings = await prisma.employeeSettings.findUnique({ where: { userId } });
   const shiftStart = empSettings?.workStartTime || '09:00';
@@ -66,6 +67,7 @@ async function getShiftCutoff(userId: string): Promise<Date> {
   }
   return cutoff;
 }
+
 // Calculate today's working time + break time
 function calculateToday(events: any[]) {
   let workingSeconds = 0;
@@ -78,12 +80,10 @@ function calculateToday(events: any[]) {
     if (e.type === 'CLOCK_IN') {
       workStart = t;
     } else if (e.type === 'BREAK_START' && workStart) {
-      // Pause working timer
       workingSeconds += Math.floor((t.getTime() - workStart.getTime()) / 1000);
       workStart = null;
       breakStart = t;
     } else if (e.type === 'BREAK_END' && breakStart) {
-      // Pause break timer, resume work
       breakSeconds += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
       breakStart = null;
       workStart = t;
@@ -99,7 +99,6 @@ function calculateToday(events: any[]) {
     }
   }
 
-  // If still running, add ongoing time
   const now = Date.now();
   if (workStart) {
     workingSeconds += Math.floor((now - workStart.getTime()) / 1000);
@@ -131,8 +130,6 @@ export async function POST(req: NextRequest) {
 
     const { type, note } = parsed.data;
 
-    // Get last event TODAY
-// Get last event within 20 hours (handles night shifts crossing midnight)
     const since = await getShiftCutoff(user!.id);
 
     const lastEvent = await prisma.clockEvent.findFirst({
@@ -145,29 +142,76 @@ export async function POST(req: NextRequest) {
     });
     const lastType = lastEvent?.type || 'NONE';
 
-    // Validate sequence
-    const allowedNext = ALLOWED_NEXT[lastType] || [];
-    if (!allowedNext.includes(type)) {
-      return NextResponse.json(
-        { error: getSequenceError(lastEvent?.type || null, type) },
-        { status: 400 }
-      );
+    // 🔥 MULTI-DEVICE SYNC: Smart auto-handling
+    let shouldSkipMainCreate = false;
+
+    // If CLOCK_IN requested but already clocked in elsewhere → auto clock-out previous, then clock-in
+    if (type === 'CLOCK_IN' && (lastType === 'CLOCK_IN' || lastType === 'BREAK_END')) {
+      await prisma.clockEvent.create({
+        data: { 
+          userId: user!.id, 
+          type: 'CLOCK_OUT', 
+          note: 'Auto: switched device' 
+        },
+      });
+      console.log('🔄 Auto clock-out previous device for user:', user!.id);
+    }
+    // If CLOCK_IN requested while on BREAK → end break first, then clock-in
+    else if (type === 'CLOCK_IN' && lastType === 'BREAK_START') {
+      await prisma.clockEvent.create({
+        data: { 
+          userId: user!.id, 
+          type: 'BREAK_END', 
+          note: 'Auto: switched device during break' 
+        },
+      });
+      await prisma.clockEvent.create({
+        data: { 
+          userId: user!.id, 
+          type: 'CLOCK_OUT', 
+          note: 'Auto: switched device' 
+        },
+      });
+      console.log('🔄 Auto end break + clock-out for switch device');
+    }
+    // If CLOCK_OUT requested but already clocked out → just return success silently
+    else if (type === 'CLOCK_OUT' && (lastType === 'CLOCK_OUT' || lastType === 'NONE')) {
+      return NextResponse.json({
+        event: null,
+        todaySummary: {
+          workingSeconds: 0,
+          breakSeconds: 0,
+          totalSeconds: 0,
+          isClockedIn: false,
+          isOnBreak: false,
+        },
+        message: 'Already clocked out',
+      });
+    }
+    // For other invalid sequences, show error
+    else {
+      const allowedNext = ALLOWED_NEXT[lastType] || [];
+      if (!allowedNext.includes(type)) {
+        return NextResponse.json(
+          { error: getSequenceError(lastEvent?.type || null, type) },
+          { status: 400 }
+        );
+      }
     }
 
-    // Create event
+    // Create the actual event
     const event = await prisma.clockEvent.create({
       data: { userId: user!.id, type, note },
     });
 
-    // Calculate today summary after this event
-const todayEvents = await prisma.clockEvent.findMany({
+    // Calculate today summary
+    const todayEvents = await prisma.clockEvent.findMany({
       where: { userId: user!.id, timestamp: { gte: since } },
       orderBy: { timestamp: 'asc' },
     });
 
     const { workingSeconds, breakSeconds } = calculateToday(todayEvents);
 
-    // Determine current state
     const onBreak = type === 'BREAK_START';
     const clockedIn = type === 'CLOCK_IN' || type === 'BREAK_END' || onBreak;
 
@@ -176,7 +220,7 @@ const todayEvents = await prisma.clockEvent.findMany({
       todaySummary: {
         workingSeconds,
         breakSeconds,
-        totalSeconds: workingSeconds, // working only (break excluded)
+        totalSeconds: workingSeconds,
         isClockedIn: clockedIn,
         isOnBreak: onBreak,
       },
