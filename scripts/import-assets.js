@@ -4,9 +4,9 @@ const path = require('path');
 
 const prisma = new PrismaClient();
 
-function detectCategory(description) {
+function detectCategory(description, excelCategory) {
   const desc = (description || '').toLowerCase();
-  if (desc.includes('laptop') || desc.includes('thinkpad') || desc.includes('macbook') || desc.includes('inspiron') || desc.includes('alienware') || desc.includes('legion') || desc.includes('blade') || desc.includes('lenovo') && desc.includes('think')) return 'Laptop';
+  if (desc.includes('laptop') || desc.includes('thinkpad') || desc.includes('macbook') || desc.includes('inspiron') || desc.includes('alienware') || desc.includes('legion') || desc.includes('blade') || desc.includes('thinkbook')) return 'Laptop';
   if (desc.includes('pc') || desc.includes('desktop') || desc.includes('dart-pc')) return 'Desktop';
   if (desc.includes('mouse')) return 'Mouse';
   if (desc.includes('keyboard')) return 'Keyboard';
@@ -41,68 +41,98 @@ function parsePrice(cost) {
   return isNaN(num) ? null : num;
 }
 
+// Match user by name (fuzzy match)
+async function findUserByName(name) {
+  if (!name || !name.trim()) return null;
+  
+  const cleanName = name.trim().toLowerCase();
+  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true } });
+  
+  // Exact match
+  let match = users.find(u => u.name.toLowerCase() === cleanName);
+  if (match) return match;
+  
+  // Partial match - first name or last name
+  match = users.find(u => {
+    const userName = u.name.toLowerCase();
+    return userName.includes(cleanName) || cleanName.includes(userName.split(' ')[0]);
+  });
+  if (match) return match;
+  
+  // First word match
+  const firstWord = cleanName.split(' ')[0];
+  match = users.find(u => u.name.toLowerCase().split(' ')[0] === firstWord);
+  
+  return match || null;
+}
+
 async function importAssets() {
   const filePath = path.join(__dirname, '..', 'assets-data.xlsx');
   console.log('Reading file:', filePath);
   
   const workbook = XLSX.readFile(filePath);
-  const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(sheet);
   
   console.log(`Found ${rows.length} assets to import\n`);
   
-  let success = 0, skipped = 0, failed = 0;
+  let success = 0, assigned = 0, unmatched = [];
   
   for (const row of rows) {
     try {
       const tagId = row['Asset Tag ID'];
-      const description = row['Description'] || 'Unnamed Asset';
+      const description = (row['Description'] || 'Unnamed Asset').trim();
+      const assignedToName = row['Assigned to'];
       
-      // Check if already exists
-      const existing = await prisma.asset.findFirst({ where: { tagId } });
-      if (existing) {
-        console.log(`⏭️  Skipped (exists): ${tagId} - ${description}`);
-        skipped++;
-        continue;
+      // Find user
+      let assignedUser = null;
+      if (assignedToName && assignedToName.trim()) {
+        assignedUser = await findUserByName(assignedToName);
+        if (!assignedUser) {
+          unmatched.push(`${tagId}: "${assignedToName}"`);
+        }
       }
       
       const purchaseDate = row['Purchase Date'];
       let parsedDate = null;
-      if (purchaseDate) {
-        if (purchaseDate instanceof Date) {
-          parsedDate = purchaseDate;
-        } else if (typeof purchaseDate === 'number') {
-          parsedDate = new Date((purchaseDate - 25569) * 86400 * 1000);
-        }
-      }
+      if (purchaseDate instanceof Date) parsedDate = purchaseDate;
       
       await prisma.asset.create({
         data: {
           tagId,
           photoUrl: row['Asset Photo'] || null,
-          name: description.trim(),
+          name: description,
           category: detectCategory(description),
           brand: (row['Brand'] || '').trim() || null,
+          model: (row['Model'] || '').trim() || null,
+          serialNumber: (row['Serial No'] || '').trim() || null,
           purchaseDate: parsedDate,
           purchasePrice: parsePrice(row['Cost']),
-          status: mapStatus(row['Status']),
+          status: assignedUser ? 'Assigned' : mapStatus(row['Status']),
+          assignedTo: assignedUser?.id || null,
+          assignedAt: assignedUser ? new Date() : null,
           condition: 'Good',
+          notes: row['Department'] ? `Department: ${row['Department']}` : null,
         }
       });
       
-      console.log(`✅ Imported: ${tagId} - ${description}`);
+      const assignInfo = assignedUser ? ` → ${assignedUser.name}` : '';
+      console.log(`✅ ${tagId} - ${description}${assignInfo}`);
       success++;
+      if (assignedUser) assigned++;
     } catch (err) {
       console.error(`❌ Failed: ${row['Asset Tag ID']} - ${err.message}`);
-      failed++;
     }
   }
   
   console.log(`\n=== SUMMARY ===`);
   console.log(`✅ Imported: ${success}`);
-  console.log(`⏭️  Skipped: ${skipped}`);
-  console.log(`❌ Failed: ${failed}`);
+  console.log(`👤 Auto-assigned: ${assigned}`);
+  console.log(`⚠️  Unmatched names (need manual assign): ${unmatched.length}`);
+  if (unmatched.length > 0) {
+    console.log('\nUnmatched assignments:');
+    unmatched.forEach(u => console.log(`  - ${u}`));
+  }
 }
 
 importAssets()
