@@ -260,6 +260,16 @@ app.whenReady().then(() => {
     }
   }, 3000);
 
+  // 🔥 AUTO-REFRESH COOKIE every 5 minutes (prevents tracker auth failures)
+  setInterval(async () => {
+    const refreshed = await captureCookies();
+    if (refreshed) {
+      console.log('🔄 Cookie refreshed at', new Date().toLocaleTimeString());
+    } else {
+      console.log('⚠️ No cookie - user may need to re-login');
+    }
+  }, 5 * 60 * 1000); // every 5 minutes
+
   // Fallback — start anyway after 30s
   setTimeout(() => {
     if (!trackerStarted) {
