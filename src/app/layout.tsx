@@ -13,7 +13,9 @@ export const metadata: Metadata = {
   authors: [{ name: 'Dart Marketing' }],
   keywords: ['dart marketing', 'team management', 'performance', 'analytics'],
   icons: {
-    icon: 'https://cdn.prod.website-files.com/66fbd171291413aa1f7ebcd8/66fc2e6622cef152f22a7fa8_dart%20logo.svg',
+    icon: 'https://portal.dartwebsite.com/dart-logo.png',
+    apple: 'https://portal.dartwebsite.com/dart-logo.png',
+    shortcut: 'https://portal.dartwebsite.com/dart-logo.png',
   },
   robots: { index: false, follow: false },
 };
