@@ -56,12 +56,16 @@ export async function GET(req: NextRequest) {
         if (act.site) byApp[act.appName].sites[act.site] = (byApp[act.appName].sites[act.site] || 0) + act.seconds;
       }
 
+      const totalIdleSeconds = idleLogs.reduce((s, i) => s + i.seconds, 0);
+      // Active time = app activity seconds (not clock time)
+      const appSeconds = activities.reduce((s, a) => s + a.seconds, 0);
+
       return NextResponse.json({
         member: members.find(m => m.id === userId),
-        totalSeconds,
+        totalSeconds: appSeconds,
         clockIn: firstClockIn?.timestamp || null,
         clockOut: lastClockOut?.timestamp || null,
-        totalIdleSeconds: idleLogs.reduce((s, i) => s + i.seconds, 0),
+        totalIdleSeconds,
         byApp: Object.values(byApp).sort((a: any, b: any) => b.seconds - a.seconds),
         idleLogs,
       });

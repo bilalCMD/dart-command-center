@@ -256,6 +256,12 @@ function checkMouseAndIdle() {
   if (idleTime >= AUTO_BREAK_THRESHOLD && !autoBreakTaken) {
     autoBreak('1_hour_idle');
   }
+
+// Auto clock-out if idle for more than 1 hour
+  if (idleTime >= 60 * 60 * 1000) {
+    console.log('Auto clock-out: 1 hour idle');
+    autoClockOut('1_hour_idle');
+  }
   
   // Detect idle end (user came back)
   if (idleTime < IDLE_THRESHOLD && isIdle) {

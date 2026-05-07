@@ -216,6 +216,14 @@ mainWindow.webContents.on('did-finish-load', async () => {
   mainWindow.on('close', (e) => {
     e.preventDefault();
     mainWindow.hide();
+    // Show notification that app is still running
+    if (Notification.isSupported()) {
+      new Notification({
+        title: 'Dart still running',
+        body: 'App is minimized to tray. Use tray icon to quit.',
+        silent: true,
+      }).show();
+    }
   });
 }
 
@@ -296,7 +304,6 @@ app.whenReady().then(() => {
   powerMonitor.on('resume', async () => {
     setTimeout(async () => {
       if (isLoggedIn) {
-        await clockRequest('CLOCK_IN', 'Auto - resumed');
         showClockInPopup();
       }
     }, 3000);
@@ -305,11 +312,89 @@ app.whenReady().then(() => {
   powerMonitor.on('unlock-screen', async () => {
     setTimeout(async () => {
       if (isLoggedIn) {
-        await clockRequest('CLOCK_IN', 'Auto - unlocked');
         showClockInPopup();
       }
     }, 2000);
   });
+
+  // ── 4 hour work reminder ──
+  let fourHourReminderShown = false;
+  let clockInTime = null;
+
+  setInterval(async () => {
+    if (!isLoggedIn || !currentCookie) return;
+
+    try {
+      // Check current clock status
+      const res = await new Promise((resolve) => {
+        const req = https.request({
+          hostname: 'portal.dartwebsite.com',
+          port: 443,
+          path: '/api/clock/today',
+          method: 'GET',
+          headers: { 'Cookie': currentCookie },
+        }, (res) => {
+          let data = '';
+          res.on('data', d => data += d);
+          res.on('end', () => {
+            try { resolve(JSON.parse(data)); } catch { resolve(null); }
+          });
+        });
+        req.on('error', () => resolve(null));
+        req.end();
+      });
+
+      if (!res) return;
+
+      const isClockedIn = res.isClockedIn;
+      const workingSeconds = res.workingSeconds || 0;
+
+      // Auto clock-out if clocked in but no activity for 1 hour
+      if (isClockedIn && workingSeconds > 3600) {
+        const lastActivity = res.currentSessionStart ? new Date(res.currentSessionStart) : null;
+        if (lastActivity) {
+          const idleMs = Date.now() - lastActivity.getTime();
+          // If session start was more than 10 hours ago with no clock-out = zombie session
+          if (idleMs > 10 * 60 * 60 * 1000) {
+            await clockRequest('CLOCK_OUT', 'Auto - zombie session');
+            console.log('Auto clock-out: zombie session');
+          }
+        }
+      }
+
+      // 4 hour reminder
+      if (isClockedIn && workingSeconds >= 4 * 3600 && !fourHourReminderShown) {
+        fourHourReminderShown = true;
+        if (Notification.isSupported()) {
+          new Notification({
+            title: '💪 Great work!',
+            body: `You've been working for 4 hours! Take a short break if needed.`,
+            silent: false,
+          }).show();
+        }
+      }
+
+      // Reset 4 hour reminder if clocked out
+      if (!isClockedIn) {
+        fourHourReminderShown = false;
+      }
+
+      // Clock-in reminder - Mon to Fri, every 1 hour if not clocked in
+      const now = new Date();
+      const day = now.getDay(); // 0=Sun, 6=Sat
+      const hour = now.getHours();
+      const isWorkingDay = day >= 1 && day <= 5;
+      const isWorkingHours = hour >= 13 && hour <= 23;
+
+      if (!isClockedIn && isWorkingDay && isWorkingHours) {
+        showClockInPopup();
+        console.log('Clock-in reminder shown');
+      }
+
+    } catch (e) {
+      console.error('Status check error:', e);
+    }
+  }, 60 * 60 * 1000); // Every 1 hour
 });
 
 ipcMain.on('popup-clock-in', async () => {

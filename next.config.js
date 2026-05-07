@@ -5,6 +5,7 @@ const nextConfig = {
       { protocol: 'https', hostname: 'cdn.prod.website-files.com' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
       { protocol: 'https', hostname: 't3.gstatic.com' },
+      { protocol: 'https', hostname: 'rilajvgbgxuohipuwksn.supabase.co' },
     ],
   },
   compress: true,
