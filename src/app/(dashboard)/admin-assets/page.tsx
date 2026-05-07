@@ -77,10 +77,13 @@ export default function AdminAssetsPage() {
     return matchSearch && matchCategory && matchStatus && matchUser;
   });
 
-  const totalValue = assets.reduce((sum, a) => sum + (parseFloat(a.purchasePrice) || 0), 0);
+  const activeAssets = assets.filter(a => a.status !== 'Disposed');
+  const totalValue = activeAssets.reduce((sum, a) => sum + (parseFloat(a.purchasePrice) || 0), 0);
+  const disposedValue = assets.filter(a => a.status === 'Disposed').reduce((sum, a) => sum + (parseFloat(a.purchasePrice) || 0), 0);
   const filteredValue = filteredAssets.reduce((sum, a) => sum + (parseFloat(a.purchasePrice) || 0), 0);
   const assignedCount = assets.filter(a => a.assignedTo).length;
   const availableCount = assets.filter(a => a.status === 'Available').length;
+  const dartAssets = assets.filter(a => !a.assignedTo && a.status === 'Available');
   const categories = Array.from(new Set(assets.map(a => a.category)));
   const pendingRequests = requests.filter(r => r.status === 'PENDING').length;
 
@@ -110,8 +113,9 @@ export default function AdminAssetsPage() {
           <div className="text-xl font-bold">{assets.length}</div>
         </div>
         <div className="bg-white p-3 rounded-lg shadow-sm border">
-          <div className="text-xs text-gray-500">Total Value</div>
+          <div className="text-xs text-gray-500">Active Value</div>
           <div className="text-xl font-bold text-green-700">Rs {(totalValue/1000).toFixed(0)}K</div>
+          {disposedValue > 0 && <div className="text-xs text-red-500">-Rs {(disposedValue/1000).toFixed(0)}K disposed</div>}
         </div>
         <div className="bg-white p-3 rounded-lg shadow-sm border">
           <div className="text-xs text-gray-500">Assigned</div>
@@ -130,6 +134,9 @@ export default function AdminAssetsPage() {
         </button>
         <button onClick={() => setActiveTab('byUser')} className={`px-4 py-1.5 text-sm rounded ${activeTab === 'byUser' ? 'bg-white shadow-sm font-semibold' : 'text-gray-600'}`}>
           By Employee
+        </button>
+        <button onClick={() => setActiveTab('dartAssets')} className={`px-4 py-1.5 text-sm rounded ${activeTab === 'dartAssets' ? 'bg-white shadow-sm font-semibold' : 'text-gray-600'}`}>
+          🎯 Dart Assets
         </button>
         <button onClick={() => setActiveTab('requests')} className={`px-4 py-1.5 text-sm rounded ${activeTab === 'requests' ? 'bg-white shadow-sm font-semibold' : 'text-gray-600'}`}>
           Requests {pendingRequests > 0 && <span className="ml-1 bg-red-500 text-white text-xs px-1.5 rounded-full">{pendingRequests}</span>}
@@ -261,6 +268,42 @@ export default function AdminAssetsPage() {
             </div>
           )}
         </>
+      )}
+      {/* Dart Assets Tab */}
+      {activeTab === 'dartAssets' && (
+        <div>
+          <div className="mb-4">
+            <h2 className="text-lg font-bold">🎯 Dart Assets</h2>
+            <p className="text-sm text-gray-500">Company owned assets not assigned to any employee</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {dartAssets.map(a => (
+              <div key={a.id} className="bg-white rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition group">
+                <div className="relative">
+                  {a.photoUrl ? (
+                    <img src={a.photoUrl} alt={a.name} className="w-full h-32 object-cover bg-gray-100" />
+                  ) : (
+                    <div className="w-full h-32 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-400 text-xs">No Image</div>
+                  )}
+                  <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-green-500 text-white">Available</span>
+                </div>
+                <div className="p-3">
+                  <h3 className="font-semibold text-sm truncate">{a.name}</h3>
+                  <div className="text-xs text-gray-500 mb-1">{a.tagId} · {a.category}</div>
+                  {a.brand && <div className="text-xs text-gray-600">{a.brand}</div>}
+                  {a.purchasePrice && <div className="text-xs font-semibold text-green-700 mt-1">Rs {parseFloat(a.purchasePrice).toLocaleString()}</div>}
+                  <div className="flex gap-2 mt-2 pt-2 border-t opacity-0 group-hover:opacity-100 transition">
+                    <button onClick={() => openEdit(a)} className="text-blue-600 text-xs">Edit</button>
+                    <button onClick={() => deleteAsset(a.id)} className="text-red-600 text-xs">Delete</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {dartAssets.length === 0 && (
+              <div className="col-span-4 text-center py-12 text-gray-500 text-sm">No unassigned assets available</div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* By Employee View */}
