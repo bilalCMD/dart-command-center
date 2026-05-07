@@ -36,7 +36,11 @@ export async function GET() {
     const team = users.map((user) => {
       const events = user.clockEvents;
       const lastEvent = events[events.length - 1];
-      const isClockedIn = lastEvent?.type === 'CLOCK_IN';
+      const isOnBreak = lastEvent?.type === 'BREAK_START';
+      const isClockedIn =
+        lastEvent?.type === 'CLOCK_IN' ||
+        lastEvent?.type === 'BREAK_END' ||
+        isOnBreak;
       const firstClockIn = events.find((e) => e.type === 'CLOCK_IN');
 
       let totalSeconds = 0;
