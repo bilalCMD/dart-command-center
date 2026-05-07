@@ -13,7 +13,6 @@ export async function GET(req: NextRequest) {
     const dateParam = searchParams.get('date');
     const userId = searchParams.get('userId');
 
-    // Fix: parse date string directly to avoid UTC timezone shift (PKT = UTC+5)
     const dateStr = dateParam || new Date().toISOString().split('T')[0];
     const [yyyy, mm, dd] = dateStr.split('-').map(Number);
     const dateKey = new Date(Date.UTC(yyyy, mm - 1, dd));
@@ -41,11 +40,7 @@ export async function GET(req: NextRequest) {
         }),
       ]);
 
-      let totalSeconds = calculateWorkingSeconds(allClockEvents);
-      if (totalSeconds === 0) {
-        totalSeconds = activities.reduce((s, a) => s + a.seconds, 0);
-      }
-
+      const totalSeconds = calculateWorkingSeconds(allClockEvents);
       const firstClockIn = allClockEvents.find(e => e.type === 'CLOCK_IN');
       const lastClockOut = [...allClockEvents].reverse().find(e => e.type === 'CLOCK_OUT');
 
@@ -57,12 +52,10 @@ export async function GET(req: NextRequest) {
       }
 
       const totalIdleSeconds = idleLogs.reduce((s, i) => s + i.seconds, 0);
-      // Active time = app activity seconds (not clock time)
-      const appSeconds = activities.reduce((s, a) => s + a.seconds, 0);
 
       return NextResponse.json({
         member: members.find(m => m.id === userId),
-        totalSeconds: appSeconds,
+        totalSeconds,
         clockIn: firstClockIn?.timestamp || null,
         clockOut: lastClockOut?.timestamp || null,
         totalIdleSeconds,
@@ -92,14 +85,23 @@ export async function GET(req: NextRequest) {
       const idles = allIdle.filter(i => i.userId === m.id);
       const userClockEvents = allClockEvents.filter(e => e.userId === m.id);
 
-      let totalSeconds = calculateWorkingSeconds(userClockEvents);
-      if (totalSeconds === 0) {
-        totalSeconds = acts.reduce((s, a) => s + a.seconds, 0);
-      }
-
+      const totalSeconds = calculateWorkingSeconds(userClockEvents);
       const totalIdleSeconds = idles.reduce((s, i) => s + i.seconds, 0);
       const topApp = [...acts].sort((a, b) => b.seconds - a.seconds)[0]?.appName || null;
-      return { ...m, totalSeconds, totalIdleSeconds, topApp, isTracking: totalSeconds > 0 };
+      
+      // Only show as active if they have clocked in today
+      const hasClockedIn = userClockEvents.some(e => e.type === 'CLOCK_IN');
+      const hasClockedOut = userClockEvents.some(e => e.type === 'CLOCK_OUT');
+      const isCurrentlyActive = hasClockedIn && !hasClockedOut;
+
+      return { 
+        ...m, 
+        totalSeconds, 
+        totalIdleSeconds, 
+        topApp, 
+        isTracking: hasClockedIn,
+        isOnline: isCurrentlyActive
+      };
     });
 
     return NextResponse.json({ date: dateKey, members: memberSummary });
@@ -134,8 +136,13 @@ function calculateWorkingSeconds(events: any[]): number {
     }
   }
 
+  // ⚠️ FIXED: Agar clock-out nahi hua to Date.now() use NAHI karo
+  // Sirf completed sessions count karo
+  // workStart open hai matlab abhi bhi working hai — cap at max 12 hours
   if (workStart) {
-    totalSeconds += Math.floor((Date.now() - workStart.getTime()) / 1000);
+    const elapsed = Math.floor((Date.now() - workStart.getTime()) / 1000);
+    const maxSeconds = 12 * 60 * 60; // 12 hours max
+    totalSeconds += Math.min(elapsed, maxSeconds);
   }
 
   return totalSeconds;

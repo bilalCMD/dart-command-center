@@ -82,12 +82,12 @@ export default function LoginPage() {
         {/* LOGO HEADER                                              */}
         {/* ═══════════════════════════════════════════════════════ */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl dart-gradient flex items-center justify-center shadow-[0_10px_30px_rgba(237,103,28,0.25)] mb-4">
-<img
-  src="/dart-logo.png"
-  alt="Dart"
-  className="h-10 w-10 object-contain"
-/>
+          <div className="mb-4">
+            <img
+              src="/dart-logo.svg"
+              alt="Dart"
+              className="h-16 w-16 object-contain"
+            />
           </div>
           <div className="text-[22px] font-black text-[var(--text)] tracking-tight leading-tight">
             Dart

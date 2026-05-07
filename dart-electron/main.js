@@ -142,7 +142,7 @@ function showClockInPopup() {
 <body>
 <div class="drag"></div>
 <div class="header">
-  <div class="logo">🎯</div>
+  <img src="https://portal.dartwebsite.com/dart-logo.png" style="width:40px;height:40px;object-fit:contain;" />
   <div class="title">Dart Command Center</div>
   <div class="sub">Good morning! Ready to start?</div>
 </div>
@@ -180,6 +180,7 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: path.join(__dirname, 'dart-logo.svg'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
