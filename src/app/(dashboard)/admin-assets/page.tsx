@@ -22,7 +22,9 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 const isSiteAsset = (a: any) => (a.notes || '').startsWith('[SITE]');
-const notesDisplay = (notes: string) => notes?.replace(/^\[SITE\]\s*/, '') || '';
+const getSiteLoc  = (notes: string) => { const m = (notes || '').match(/\[LOC:([^\]]*)\]/); return m ? m[1] : ''; };
+const getCleanNotes = (notes: string) => (notes || '').replace(/^\[SITE\]/, '').replace(/\[LOC:[^\]]*\]/, '').trim();
+const encodeSiteNotes = (loc: string, notes: string) => { let r = '[SITE]'; if (loc) r += `[LOC:${loc}]`; if (notes) r += ` ${notes}`; return r; };
 
 export default function AdminAssetsPage() {
   const [assets, setAssets]         = useState<any[]>([]);
@@ -40,7 +42,7 @@ export default function AdminAssetsPage() {
   const [form, setForm] = useState({
     name: '', tagId: '', photoUrl: '', category: 'Laptop', brand: '', model: '',
     serialNumber: '', condition: 'Good', assignedTo: '', purchaseDate: '',
-    purchasePrice: '', notes: '',
+    purchasePrice: '', notes: '', siteLocation: '',
   });
 
   useEffect(() => { loadData(); }, []);
@@ -60,13 +62,13 @@ export default function AdminAssetsPage() {
     setAssetType(type);
     setForm({ name: '', tagId: '', photoUrl: '', category: type === 'site' ? 'Furniture' : 'Laptop',
       brand: '', model: '', serialNumber: '', condition: 'Good', assignedTo: '',
-      purchaseDate: '', purchasePrice: '', notes: type === 'site' ? '[SITE] ' : '' });
+      purchaseDate: '', purchasePrice: '', notes: '', siteLocation: '' });
   }
 
   async function saveAsset() {
     const finalNotes = assetType === 'site'
-      ? (form.notes.startsWith('[SITE]') ? form.notes : `[SITE] ${form.notes}`)
-      : form.notes.replace(/^\[SITE\]\s*/, '');
+      ? encodeSiteNotes(form.siteLocation, form.notes)
+      : form.notes;
 
     const url    = editingAsset ? `/api/assets/${editingAsset.id}` : '/api/assets';
     const method = editingAsset ? 'PATCH' : 'POST';
@@ -97,7 +99,9 @@ export default function AdminAssetsPage() {
       serialNumber: asset.serialNumber || '', condition: asset.condition,
       assignedTo: asset.assignedTo || '',
       purchaseDate: asset.purchaseDate ? asset.purchaseDate.split('T')[0] : '',
-      purchasePrice: asset.purchasePrice || '', notes: asset.notes || '',
+      purchasePrice: asset.purchasePrice || '',
+      notes: site ? getCleanNotes(asset.notes || '') : (asset.notes || ''),
+      siteLocation: site ? getSiteLoc(asset.notes || '') : '',
     });
     setShowModal(true);
   }
@@ -437,17 +441,30 @@ export default function AdminAssetsPage() {
                 <input placeholder="Serial Number" value={form.serialNumber} onChange={e => setForm({...form, serialNumber: e.target.value})}
                   className="border border-[var(--border)] px-3 py-2 rounded-xl text-[13px] outline-none focus:border-[var(--orange)] bg-transparent col-span-2" />
 
-                <select value={form.assignedTo} onChange={e => setForm({...form, assignedTo: e.target.value})}
-                  className="border border-[var(--border)] px-3 py-2 rounded-xl text-[13px] outline-none focus:border-[var(--orange)] bg-transparent col-span-2">
-                  <option value="">-- Not Assigned --</option>
-                  {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
-                </select>
+                {assetType === 'site' && (
+                  <div className="col-span-2">
+                    <div className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider mb-1.5">Assign to Location / Area</div>
+                    <input
+                      placeholder="e.g. Ground Floor, Meeting Room, Server Room"
+                      value={form.siteLocation}
+                      onChange={e => setForm({...form, siteLocation: e.target.value})}
+                      className="w-full border border-[var(--border)] px-3 py-2 rounded-xl text-[13px] outline-none focus:border-[var(--orange)] bg-transparent"
+                    />
+                  </div>
+                )}
+                {assetType === 'employee' && (
+                  <select value={form.assignedTo} onChange={e => setForm({...form, assignedTo: e.target.value})}
+                    className="border border-[var(--border)] px-3 py-2 rounded-xl text-[13px] outline-none focus:border-[var(--orange)] bg-transparent col-span-2">
+                    <option value="">-- Not Assigned --</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
+                  </select>
+                )}
 
                 <input type="date" value={form.purchaseDate} onChange={e => setForm({...form, purchaseDate: e.target.value})}
                   className="border border-[var(--border)] px-3 py-2 rounded-xl text-[13px] outline-none focus:border-[var(--orange)] bg-transparent" />
                 <input type="number" placeholder="Price (Rs)" value={form.purchasePrice} onChange={e => setForm({...form, purchasePrice: e.target.value})}
                   className="border border-[var(--border)] px-3 py-2 rounded-xl text-[13px] outline-none focus:border-[var(--orange)] bg-transparent" />
-                <textarea placeholder="Notes" value={notesDisplay(form.notes)} onChange={e => setForm({...form, notes: assetType === 'site' ? '[SITE] ' + e.target.value : e.target.value})}
+                <textarea placeholder="Notes (optional)" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})}
                   className="border border-[var(--border)] px-3 py-2 rounded-xl text-[13px] outline-none focus:border-[var(--orange)] bg-transparent col-span-2" rows={2} />
               </div>
 
@@ -468,7 +485,7 @@ export default function AdminAssetsPage() {
 function AssetGrid({ assets, viewMode, onEdit, onDelete, siteMode = false }: {
   assets: any[]; viewMode: 'grid' | 'list'; onEdit: (a: any) => void; onDelete: (id: string) => void; siteMode?: boolean;
 }) {
-  const notesDisplay = (notes: string) => notes?.replace(/^\[SITE\]\s*/, '') || '';
+  const getSiteLoc = (notes: string) => { const m = (notes || '').match(/\[LOC:([^\]]*)\]/); return m ? m[1] : ''; };
 
   if (viewMode === 'list') {
     return (
@@ -524,10 +541,13 @@ function AssetGrid({ assets, viewMode, onEdit, onDelete, siteMode = false }: {
             <div className="text-[11px] text-[var(--muted)] mb-1">{a.tagId ? `${a.tagId} · ` : ''}{a.category}</div>
             {a.brand && <div className="text-[11px] text-[var(--muted)]">{a.brand}</div>}
             {a.purchasePrice && <div className="text-[12px] font-bold text-emerald-600 mt-1">Rs {parseFloat(a.purchasePrice).toLocaleString()}</div>}
-            {!siteMode && (a.assignedUser
-              ? <div className="text-[11px] text-blue-600 mt-1 truncate">Assigned: {a.assignedUser.name}</div>
-              : <div className="text-[11px] text-[var(--subtle)] mt-1">Not assigned</div>
-            )}
+            {siteMode
+              ? getSiteLoc(a.notes) && <div className="text-[11px] text-amber-600 font-semibold mt-1 truncate">{getSiteLoc(a.notes)}</div>
+              : (a.assignedUser
+                  ? <div className="text-[11px] text-blue-600 mt-1 truncate">Assigned: {a.assignedUser.name}</div>
+                  : <div className="text-[11px] text-[var(--subtle)] mt-1">Not assigned</div>
+                )
+            }
             <div className="flex gap-3 mt-2 pt-2 border-t border-[var(--border)] opacity-0 group-hover:opacity-100 transition-opacity">
               <button onClick={() => onEdit(a)} className="text-[var(--orange)] text-[11px] font-semibold bg-transparent border-none cursor-pointer hover:underline">Edit</button>
               <button onClick={() => onDelete(a.id)} className="text-red-500 text-[11px] font-semibold bg-transparent border-none cursor-pointer hover:underline">Delete</button>
