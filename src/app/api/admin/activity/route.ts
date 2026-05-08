@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
         if (act.site) byApp[act.appName].sites[act.site] = (byApp[act.appName].sites[act.site] || 0) + act.seconds;
       }
 
-      const totalIdleSeconds = idleLogs.reduce((s, i) => s + i.seconds, 0);
+      const totalIdleSeconds = calcIdleWithinSessions(idleLogs, allClockEvents);
 
       return NextResponse.json({
         member: members.find(m => m.id === userId),
@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
       }),
       prisma.idleLog.findMany({
         where: { idleFrom: { gte: dateKey, lt: nextDay } },
-        select: { userId: true, seconds: true },
+        select: { userId: true, seconds: true, idleFrom: true, idleTo: true },
       }),
       prisma.clockEvent.findMany({
         where: { timestamp: { gte: dateKey, lt: nextDay } },
@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
       const userClockEvents = allClockEvents.filter(e => e.userId === m.id);
 
       const totalSeconds = calculateWorkingSeconds(userClockEvents);
-      const totalIdleSeconds = idles.reduce((s, i) => s + i.seconds, 0);
+      const totalIdleSeconds = calcIdleWithinSessions(idles, userClockEvents);
       const topApp = [...acts].sort((a, b) => b.seconds - a.seconds)[0]?.appName || null;
 
       // Use last event to determine current status (handles multiple sessions in a day)
@@ -111,6 +111,32 @@ export async function GET(req: NextRequest) {
     console.error(err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
+}
+
+function calcIdleWithinSessions(idleLogs: any[], clockEvents: any[]): number {
+  const sessions: { start: number; end: number }[] = [];
+  let sessStart: Date | null = null;
+  for (const e of clockEvents) {
+    if (e.type === 'CLOCK_IN') {
+      sessStart = new Date(e.timestamp);
+    } else if (e.type === 'CLOCK_OUT' && sessStart) {
+      sessions.push({ start: sessStart.getTime(), end: new Date(e.timestamp).getTime() });
+      sessStart = null;
+    }
+  }
+  if (sessStart) sessions.push({ start: sessStart.getTime(), end: Date.now() });
+
+  return Math.round(idleLogs.reduce((sum, log) => {
+    const from = new Date(log.idleFrom).getTime();
+    const to   = new Date(log.idleTo).getTime();
+    let overlap = 0;
+    for (const s of sessions) {
+      const start = Math.max(from, s.start);
+      const end   = Math.min(to, s.end);
+      if (end > start) overlap += (end - start) / 1000;
+    }
+    return sum + overlap;
+  }, 0));
 }
 
 function calculateWorkingSeconds(events: any[]): number {

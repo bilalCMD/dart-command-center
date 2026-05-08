@@ -43,7 +43,6 @@ export async function POST(req: Request) {
       serialNumber: body.serialNumber,
       condition: body.condition || 'Good',
       status: body.assignedTo ? 'Assigned' : 'Available',
-      location: body.location || 'employee',
       assignedTo: body.assignedTo || null,
       assignedAt: body.assignedTo ? new Date() : null,
       purchaseDate: body.purchaseDate ? new Date(body.purchaseDate) : null,
