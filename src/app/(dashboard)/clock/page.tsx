@@ -164,7 +164,23 @@ export default function ClockPage() {
   const [loading, setLoading]                 = useState(true);
   const [showInactive, setShowInactive]       = useState(false);
   const [refreshing, setRefreshing]           = useState(false);
-  const [adminTab, setAdminTab]               = useState<'live' | 'log'>('live');
+  const [adminTab, setAdminTab]               = useState<'live' | 'log' | 'report'>('live');
+
+  const today = new Date().toISOString().split('T')[0];
+  const [reportFrom, setReportFrom]           = useState(today);
+  const [reportTo, setReportTo]               = useState(today);
+  const [reportData, setReportData]           = useState<any>(null);
+  const [reportLoading, setReportLoading]     = useState(false);
+
+  const fetchReport = async () => {
+    setReportLoading(true);
+    try {
+      const res  = await fetch(`/api/clock/report?from=${reportFrom}&to=${reportTo}`);
+      const data = await res.json();
+      setReportData(data);
+    } catch (e) { console.error(e); }
+    finally { setReportLoading(false); }
+  };
 
   const fetchEmployeeStatus = async () => {
     try {
@@ -314,8 +330,9 @@ export default function ClockPage() {
         {/* Tabs */}
         <div className="flex gap-1 bg-[var(--surface2)] border border-[var(--border)] rounded-xl p-1 mb-5 w-fit">
           {[
-            { key: 'live', label: 'Live Status', icon: <Activity size={13} /> },
-            { key: 'log', label: 'Activity Log', icon: <FileText size={13} /> },
+            { key: 'live',   label: 'Live Status',  icon: <Activity size={13} /> },
+            { key: 'log',    label: 'Activity Log', icon: <FileText size={13} /> },
+            { key: 'report', label: 'Date Report',  icon: <Calendar size={13} /> },
           ].map((t) => (
             <button key={t.key} onClick={() => setAdminTab(t.key as any)}
               className={`flex items-center gap-1.5 px-4 py-2 text-[12px] font-bold rounded-lg transition-all border-none cursor-pointer ${adminTab === t.key ? 'dart-gradient text-white shadow-soft' : 'bg-transparent text-[var(--muted)] hover:text-[var(--text)]'}`}>
@@ -400,6 +417,112 @@ export default function ClockPage() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {adminTab === 'report' && (
+          <div className="space-y-4">
+            {/* Date pickers */}
+            <div className="bg-white rounded-2xl border border-[var(--border)] shadow-soft p-5">
+              <div className="flex items-end gap-4 flex-wrap">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">From</label>
+                  <input
+                    type="date"
+                    value={reportFrom}
+                    onChange={e => setReportFrom(e.target.value)}
+                    max={today}
+                    className="px-3 py-2 text-[13px] font-semibold text-[var(--text)] bg-[var(--surface2)] border border-[var(--border)] rounded-xl outline-none focus:border-[var(--orange)] transition-colors cursor-pointer"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">To</label>
+                  <input
+                    type="date"
+                    value={reportTo}
+                    onChange={e => setReportTo(e.target.value)}
+                    max={today}
+                    className="px-3 py-2 text-[13px] font-semibold text-[var(--text)] bg-[var(--surface2)] border border-[var(--border)] rounded-xl outline-none focus:border-[var(--orange)] transition-colors cursor-pointer"
+                  />
+                </div>
+                <button
+                  onClick={fetchReport}
+                  disabled={reportLoading}
+                  className="flex items-center gap-2 px-5 py-2 dart-gradient text-white text-[12px] font-bold rounded-xl border-none cursor-pointer hover:opacity-90 transition-all disabled:opacity-60 shadow-soft"
+                >
+                  {reportLoading
+                    ? <><RefreshCw size={13} className="animate-spin" /> Loading...</>
+                    : <><Calendar size={13} /> Search</>}
+                </button>
+              </div>
+            </div>
+
+            {/* Results */}
+            {reportData && (
+              <div className="space-y-3">
+                {reportData.employees?.filter((emp: any) => emp.days.length > 0).length === 0 ? (
+                  <div className="bg-white rounded-2xl border border-[var(--border)] shadow-soft px-5 py-14 text-center">
+                    <Calendar size={22} className="text-[var(--subtle)] mx-auto mb-2" />
+                    <div className="text-[13px] font-semibold text-[var(--text)]">No attendance records found</div>
+                    <div className="text-[11px] text-[var(--muted)] mt-1">No one clocked in during this period</div>
+                  </div>
+                ) : (
+                  reportData.employees
+                    .filter((emp: any) => emp.days.length > 0)
+                    .map((emp: any) => (
+                      <div key={emp.userId} className="bg-white rounded-2xl border border-[var(--border)] shadow-soft overflow-hidden">
+                        {/* Employee header */}
+                        <div className="px-5 py-3.5 border-b border-[var(--border)] bg-[var(--surface2)] flex items-center gap-3">
+                          <div className="w-8 h-8 dart-gradient rounded-xl flex items-center justify-center text-[11px] font-bold text-white shrink-0">
+                            {emp.avatar || emp.name?.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="text-[13px] font-bold text-[var(--text)]">{emp.name}</div>
+                            <div className="text-[10px] text-[var(--muted)]">{emp.email}</div>
+                          </div>
+                          <div className="ml-auto text-right">
+                            <div className="text-[10px] text-[var(--muted)] font-semibold uppercase tracking-wider">Days Present</div>
+                            <div className="text-[15px] font-black text-[var(--text)]">{emp.days.length}</div>
+                          </div>
+                        </div>
+
+                        {/* Days table */}
+                        <div className="divide-y divide-[var(--border)]">
+                          {/* Table header */}
+                          <div className="grid grid-cols-4 px-5 py-2 bg-[var(--surface2)]">
+                            {['Date', 'Clock In', 'Clock Out', 'Total Hours'].map(h => (
+                              <div key={h} className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider">{h}</div>
+                            ))}
+                          </div>
+                          {emp.days.map((day: any) => {
+                            const fmtT = (d: string) => new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                            const fmtS = (s: number) => { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m`; };
+                            const dateLabel = new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                            const metTarget = day.totalSeconds >= 8 * 3600;
+                            return (
+                              <div key={day.date} className="grid grid-cols-4 px-5 py-3 hover:bg-[var(--surface2)] transition-colors items-center">
+                                <div className="text-[12px] font-semibold text-[var(--text)]">{dateLabel}</div>
+                                <div className="flex items-center gap-1.5 text-[12px] font-semibold text-emerald-600">
+                                  <LogIn size={11} />
+                                  {day.firstClockIn ? fmtT(day.firstClockIn) : <span className="text-[var(--subtle)]">—</span>}
+                                </div>
+                                <div className="flex items-center gap-1.5 text-[12px] font-semibold text-red-500">
+                                  <LogOut size={11} />
+                                  {day.lastClockOut ? fmtT(day.lastClockOut) : <span className="text-[10px] text-emerald-600 font-bold animate-pulse">● Active</span>}
+                                </div>
+                                <div className={`text-[12px] font-bold ${metTarget ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                  {fmtS(day.totalSeconds)}
+                                  {metTarget && <span className="ml-1 text-[9px]">✓</span>}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))
+                )}
               </div>
             )}
           </div>
