@@ -94,13 +94,13 @@ export async function GET(req: NextRequest) {
       const hasClockedOut = userClockEvents.some(e => e.type === 'CLOCK_OUT');
       const isCurrentlyActive = hasClockedIn && !hasClockedOut;
 
-      return { 
-        ...m, 
-        totalSeconds, 
-        totalIdleSeconds, 
-        topApp, 
-        isTracking: hasClockedIn,
-        isOnline: isCurrentlyActive
+      return {
+        ...m,
+        totalSeconds,
+        totalIdleSeconds,
+        topApp,
+        isTracking: hasClockedIn && totalSeconds > 0,
+        isOnline: isCurrentlyActive,
       };
     });
 

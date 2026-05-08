@@ -84,7 +84,7 @@ export default function LoginPage() {
         <div className="flex flex-col items-center mb-8">
           <div className="mb-4">
             <img
-              src="/dart-logo.svg"
+              src="/logo-new.png"
               alt="Dart"
               className="h-16 w-16 object-contain"
             />

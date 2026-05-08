@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
               </div>
               <div style="padding:32px;">
                 <p>Hi <strong>${admin.name}</strong>,</p>
-                <p><strong>${report.user?.name}</strong> ne aaj ka EOD submit kar diya:</p>
+                <p><strong>${report.user?.name}</strong> has submitted today's EOD report:</p>
                 <table style="width:100%;font-size:13px;color:#555;margin-top:16px;">
                   <tr><td style="padding:4px 0;"><strong>Tasks:</strong></td><td>${tasksCompleted}</td></tr>
                   <tr><td style="padding:4px 0;"><strong>KPI:</strong></td><td>${kpiFocus || '—'}</td></tr>

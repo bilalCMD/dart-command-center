@@ -41,6 +41,8 @@ export default function ActivityMonitorPage() {
     const data = await res.json();
     // Sort: active members first
     const sorted = (data.members || []).sort((a: any, b: any) => {
+      if (a.isOnline && !b.isOnline) return -1;
+      if (!a.isOnline && b.isOnline) return 1;
       if (a.isTracking && !b.isTracking) return -1;
       if (!a.isTracking && b.isTracking) return 1;
       return b.totalSeconds - a.totalSeconds;
@@ -71,8 +73,8 @@ export default function ActivityMonitorPage() {
   ).sort((a: any, b: any) => b.seconds - a.seconds);
   const totalChromeSeconds = chromeSites.reduce((s: number, c: any) => s + c.seconds, 0);
 
-  const activeMembers = members.filter(m => m.isTracking);
-  const inactiveMembers = members.filter(m => !m.isTracking);
+  const activeMembers = members.filter(m => m.isOnline);
+  const inactiveMembers = members.filter(m => !m.isOnline);
 
   return (
     <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
@@ -133,7 +135,7 @@ export default function ActivityMonitorPage() {
                     <span style={{ fontSize: '10px', fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Active Now</span>
                   </div>
                   {activeMembers.map(m => (
-                    <MemberRow key={m.id} m={m} selected={selected} onSelect={selectMember} active />
+                    <MemberRow key={m.id} m={m} selected={selected} onSelect={selectMember} active={m.isOnline} />
                   ))}
                   {inactiveMembers.length > 0 && <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />}
                 </>
@@ -182,7 +184,7 @@ export default function ActivityMonitorPage() {
                   <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)' }}>{selected.name}</div>
                   <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{selected.role}</div>
                 </div>
-                {selected.isTracking && (
+                {selected.isOnline && (
                   <span style={{ fontSize: '11px', fontWeight: 700, background: '#dcfce7', color: '#16a34a', padding: '4px 10px', borderRadius: '99px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />
                     Active

@@ -74,7 +74,7 @@ export default function Sidebar({ user, isAdmin, setIsAdmin }: SidebarProps) {
         <div className="flex items-center gap-2.5">
           <div className="w-10 h-10 flex items-center justify-center">
             <img
-              src="/dart-logo.svg"
+              src="/logo-new.png"
               alt="Dart"
               className="h-full w-full object-contain"
             />

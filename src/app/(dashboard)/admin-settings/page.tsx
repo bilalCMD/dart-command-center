@@ -349,7 +349,7 @@ export default function AdminSettingsPage() {
             <div className="flex items-center justify-between py-3 px-4 bg-[var(--surface2)] rounded-xl border border-[var(--border)]">
               <div>
                 <p className="text-sm font-semibold text-[var(--text)]">EOD Report Required</p>
-                <p className="text-[11px] text-[var(--muted)]">Har din end-of-day report submit karni hogi</p>
+                <p className="text-[11px] text-[var(--muted)]">A daily end-of-day report will be required</p>
               </div>
               <Toggle checked={company.requireEOD} onChange={v => set('requireEOD', v)} />
             </div>

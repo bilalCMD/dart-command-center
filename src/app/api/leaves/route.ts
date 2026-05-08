@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
               </div>
               <div style="padding:32px;">
                 <p style="font-size:15px;">Hi <strong>${admin.name}</strong>,</p>
-                <p><strong>${request.user?.name}</strong> ne leave request submit ki hai:</p>
+                <p><strong>${request.user?.name}</strong> has submitted a leave request:</p>
                 <table style="width:100%;font-size:13px;color:#555;margin-top:16px;">
                   <tr><td style="padding:4px 0;"><strong>Type:</strong></td><td>${type}</td></tr>
                   <tr><td style="padding:4px 0;"><strong>From:</strong></td><td>${from.toDateString()}</td></tr>

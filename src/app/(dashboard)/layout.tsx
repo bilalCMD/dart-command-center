@@ -120,7 +120,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="md:hidden bg-white border-b border-[var(--border)] px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 flex items-center justify-center">
-            <img src="/dart-logo.png" alt="Dart" className="h-full w-full object-contain" />
+            <img src="/logo-new.png" alt="Dart" className="h-full w-full object-contain" />
           </div>
           <div>
             <div className="text-sm font-bold leading-tight">Dart</div>
