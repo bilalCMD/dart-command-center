@@ -104,7 +104,7 @@ export default function AdminAssetsPage() {
 
   const empAssets   = assets.filter(a => !isSiteAsset(a));
   const siteAssets  = assets.filter(a => isSiteAsset(a));
-  const dartAssets  = empAssets.filter(a => !a.assignedTo && a.status === 'Available');
+  const dartAssets  = assets.filter(a => !a.assignedTo && a.status === 'Available');
 
   const filteredAssets = assets.filter(a => {
     const ms = !search || a.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -173,7 +173,7 @@ export default function AdminAssetsPage() {
         {[
           { key: 'assets',     label: 'All Assets',  icon: <Package size={12} /> },
           { key: 'byUser',     label: 'By Employee', icon: <Users size={12} /> },
-          { key: 'dartAssets', label: 'Dart Assets', icon: <Target size={12} /> },
+          { key: 'dartAssets', label: 'Available Assets', icon: <Target size={12} /> },
           { key: 'siteAssets', label: 'Site Assets', icon: <Building2 size={12} /> },
           { key: 'requests',   label: 'Requests',    icon: <FileText size={12} />, badge: pendingRequests },
         ].map(t => (
@@ -228,8 +228,8 @@ export default function AdminAssetsPage() {
         <div>
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="text-[16px] font-black text-[var(--text)]">Dart Assets</h2>
-              <p className="text-[12px] text-[var(--muted)] mt-0.5">Company assets available for employee assignment</p>
+              <h2 className="text-[16px] font-black text-[var(--text)]">Available Assets</h2>
+              <p className="text-[12px] text-[var(--muted)] mt-0.5">All unassigned assets available for employee assignment</p>
             </div>
             <div className="bg-white border border-[var(--border)] rounded-xl px-4 py-2 text-center shadow-soft">
               <div className="text-[10px] text-[var(--muted)] font-semibold uppercase tracking-wider">Available</div>
@@ -238,7 +238,7 @@ export default function AdminAssetsPage() {
           </div>
           {dartAssets.length > 0
             ? <AssetGrid assets={dartAssets} viewMode="grid" onEdit={openEdit} onDelete={deleteAsset} />
-            : <EmptyState icon={<Target size={24} className="text-[var(--subtle)]" />} text="No unassigned assets available" />
+            : <EmptyState icon={<Target size={24} className="text-[var(--subtle)]" />} text="No available assets" />
           }
         </div>
       )}
@@ -437,13 +437,11 @@ export default function AdminAssetsPage() {
                 <input placeholder="Serial Number" value={form.serialNumber} onChange={e => setForm({...form, serialNumber: e.target.value})}
                   className="border border-[var(--border)] px-3 py-2 rounded-xl text-[13px] outline-none focus:border-[var(--orange)] bg-transparent col-span-2" />
 
-                {assetType === 'employee' && (
-                  <select value={form.assignedTo} onChange={e => setForm({...form, assignedTo: e.target.value})}
-                    className="border border-[var(--border)] px-3 py-2 rounded-xl text-[13px] outline-none focus:border-[var(--orange)] bg-transparent col-span-2">
-                    <option value="">-- Not Assigned --</option>
-                    {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
-                  </select>
-                )}
+                <select value={form.assignedTo} onChange={e => setForm({...form, assignedTo: e.target.value})}
+                  className="border border-[var(--border)] px-3 py-2 rounded-xl text-[13px] outline-none focus:border-[var(--orange)] bg-transparent col-span-2">
+                  <option value="">-- Not Assigned --</option>
+                  {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
+                </select>
 
                 <input type="date" value={form.purchaseDate} onChange={e => setForm({...form, purchaseDate: e.target.value})}
                   className="border border-[var(--border)] px-3 py-2 rounded-xl text-[13px] outline-none focus:border-[var(--orange)] bg-transparent" />
