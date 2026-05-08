@@ -22,10 +22,11 @@ export async function GET() {
       orderBy: { timestamp: 'asc' },
     });
 
-    // Calculate working time + break time
+    // Working seconds = total office time (CLOCK_IN to CLOCK_OUT, breaks included)
+    // Break seconds = informational only, not subtracted from total
     let workingSeconds = 0;
     let breakSeconds = 0;
-    let workStart: Date | null = null;
+    let sessionStart: Date | null = null;
     let breakStart: Date | null = null;
     let firstClockIn: Date | null = null;
 
@@ -34,21 +35,16 @@ export async function GET() {
 
       if (e.type === 'CLOCK_IN') {
         if (!firstClockIn) firstClockIn = t;
-        workStart = t;
-      } else if (e.type === 'BREAK_START' && workStart) {
-        // Pause working timer
-        workingSeconds += Math.floor((t.getTime() - workStart.getTime()) / 1000);
-        workStart = null;
+        sessionStart = t;
+      } else if (e.type === 'BREAK_START' && !breakStart) {
         breakStart = t;
       } else if (e.type === 'BREAK_END' && breakStart) {
-        // End break, resume work
         breakSeconds += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
         breakStart = null;
-        workStart = t;
       } else if (e.type === 'CLOCK_OUT') {
-        if (workStart) {
-          workingSeconds += Math.floor((t.getTime() - workStart.getTime()) / 1000);
-          workStart = null;
+        if (sessionStart) {
+          workingSeconds += Math.floor((t.getTime() - sessionStart.getTime()) / 1000);
+          sessionStart = null;
         }
         if (breakStart) {
           breakSeconds += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
@@ -59,8 +55,8 @@ export async function GET() {
 
     // Add ongoing time
     const now = Date.now();
-    if (workStart) {
-      workingSeconds += Math.floor((now - workStart.getTime()) / 1000);
+    if (sessionStart) {
+      workingSeconds += Math.floor((now - sessionStart.getTime()) / 1000);
     }
     if (breakStart) {
       breakSeconds += Math.floor((now - breakStart.getTime()) / 1000);

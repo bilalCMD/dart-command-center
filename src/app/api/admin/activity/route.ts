@@ -162,38 +162,25 @@ function calculateBreakSeconds(events: any[]): number {
   return totalBreak;
 }
 
+// Total office time = CLOCK_IN to CLOCK_OUT including breaks
+// Breaks are part of office hours, not subtracted
 function calculateWorkingSeconds(events: any[]): number {
   let totalSeconds = 0;
-  let workStart: Date | null = null;
-  let breakStart: Date | null = null;
+  let sessionStart: Date | null = null;
 
   for (const e of events) {
     const t = new Date(e.timestamp);
     if (e.type === 'CLOCK_IN') {
-      workStart = t;
-    } else if (e.type === 'BREAK_START' && workStart) {
-      totalSeconds += Math.floor((t.getTime() - workStart.getTime()) / 1000);
-      workStart = null;
-      breakStart = t;
-    } else if (e.type === 'BREAK_END' && breakStart) {
-      breakStart = null;
-      workStart = t;
-    } else if (e.type === 'CLOCK_OUT') {
-      if (workStart) {
-        totalSeconds += Math.floor((t.getTime() - workStart.getTime()) / 1000);
-        workStart = null;
-      }
-      breakStart = null;
+      sessionStart = t;
+    } else if (e.type === 'CLOCK_OUT' && sessionStart) {
+      totalSeconds += Math.floor((t.getTime() - sessionStart.getTime()) / 1000);
+      sessionStart = null;
     }
   }
 
-  // ⚠️ FIXED: Agar clock-out nahi hua to Date.now() use NAHI karo
-  // Sirf completed sessions count karo
-  // workStart open hai matlab abhi bhi working hai — cap at max 12 hours
-  if (workStart) {
-    const elapsed = Math.floor((Date.now() - workStart.getTime()) / 1000);
-    const maxSeconds = 12 * 60 * 60; // 12 hours max
-    totalSeconds += Math.min(elapsed, maxSeconds);
+  if (sessionStart) {
+    const elapsed = Math.floor((Date.now() - sessionStart.getTime()) / 1000);
+    totalSeconds += Math.min(elapsed, 12 * 60 * 60);
   }
 
   return totalSeconds;
