@@ -176,20 +176,60 @@ export default function ActivityMonitorPage() {
           ) : detail ? (
             <>
               {/* Member header */}
-              <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--border)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #f97316, #fb923c)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 800, color: '#fff' }}>
-                  {selected.avatar || selected.name?.[0] || '?'}
+              <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--border)', padding: '16px 20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: detail.clockIn ? '14px' : '0' }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #f97316, #fb923c)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+                    {selected.avatar || selected.name?.[0] || '?'}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)' }}>{selected.name}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '10px', marginTop: '2px' }}>
+                      <span>{selected.role}</span>
+                      {detail.clockIn && (
+                        <span style={{ color: '#16a34a', fontWeight: 600 }}>
+                          Clocked in at {new Date(detail.clockIn).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </span>
+                      )}
+                      {detail.clockOut && (
+                        <span style={{ color: 'var(--muted)', fontWeight: 600 }}>
+                          · Out {new Date(detail.clockOut).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {selected.isOnline && (
+                    <span style={{ fontSize: '11px', fontWeight: 700, background: '#dcfce7', color: '#16a34a', padding: '4px 10px', borderRadius: '99px', display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />
+                      Active
+                    </span>
+                  )}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)' }}>{selected.name}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{selected.role}</div>
-                </div>
-                {selected.isOnline && (
-                  <span style={{ fontSize: '11px', fontWeight: 700, background: '#dcfce7', color: '#16a34a', padding: '4px 10px', borderRadius: '99px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />
-                    Active
-                  </span>
-                )}
+
+                {/* 8-hour progress bar */}
+                {detail.clockIn && (() => {
+                  const pct = Math.min((detail.totalSeconds / (8 * 3600)) * 100, 100);
+                  const hrs = (detail.totalSeconds / 3600).toFixed(1);
+                  const done = pct >= 100;
+                  return (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted)' }}>Daily Progress</span>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: done ? '#16a34a' : 'var(--orange)' }}>
+                          {hrs}h / 8h {done ? '✓ Complete' : `· ${(8 - detail.totalSeconds / 3600).toFixed(1)}h left`}
+                        </span>
+                      </div>
+                      <div style={{ height: '8px', background: 'var(--surface2)', borderRadius: '99px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                        <div style={{
+                          height: '100%',
+                          width: `${pct}%`,
+                          borderRadius: '99px',
+                          background: done ? '#22c55e' : 'linear-gradient(90deg, #f97316, #fb923c)',
+                          transition: 'width 0.4s ease',
+                        }} />
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Summary Cards */}
