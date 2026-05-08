@@ -605,19 +605,30 @@ export default function ClockPage() {
                 </div>
               )}
 
-              {(breakSeconds > 0 && !isOnBreak) && (
-                <div className="inline-flex items-center gap-2 mb-3 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200">
-                  <Coffee size={11} className="text-amber-600" />
-                  <span className="text-[11px] font-bold text-amber-700">Break taken: {fmtShort(breakSeconds)}{breakCount > 1 ? ` · ${breakCount} breaks` : ''}</span>
+              {/* Stats boxes */}
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="bg-[var(--surface2)] border border-[var(--border)] rounded-xl p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <Timer size={10} className="text-[var(--orange)]" />
+                    <span className="text-[9px] font-bold text-[var(--muted)] uppercase tracking-wider">Working</span>
+                  </div>
+                  <div className="text-[15px] font-black text-[var(--text)]">{fmtShort(elapsed) || '0m'}</div>
                 </div>
-              )}
-
-              {idleSeconds > 0 && (
-                <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200">
-                  <AlarmClock size={11} className="text-slate-400" />
-                  <span className="text-[11px] font-bold text-slate-500">Idle time: {fmtShort(idleSeconds)}</span>
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <Coffee size={10} className="text-amber-500" />
+                    <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wider">Break</span>
+                  </div>
+                  <div className="text-[15px] font-black text-amber-700">{fmtShort(breakSeconds) || '0m'}</div>
                 </div>
-              )}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <AlarmClock size={10} className="text-slate-400" />
+                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Idle</span>
+                  </div>
+                  <div className="text-[15px] font-black text-slate-500">{fmtShort(idleSeconds) || '0m'}</div>
+                </div>
+              </div>
 
               {/* Progress bar */}
               <div className="mb-1.5">
@@ -628,15 +639,8 @@ export default function ClockPage() {
                 <div className="w-full bg-[var(--surface2)] rounded-full h-2 overflow-hidden">
                   <div className="h-full rounded-full dart-gradient transition-all duration-1000" style={{ width: `${progressPct}%` }} />
                 </div>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-[10px] text-[var(--muted)] font-semibold">
-                    {progressPct >= 100 ? '🎉 8h target reached!' : `${fmtShort(elapsed)} of 8h`}
-                  </span>
-                  {idleSeconds > 0 && (
-                    <span className="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
-                      <AlarmClock size={10} /> {fmtShort(idleSeconds)} idle
-                    </span>
-                  )}
+                <div className="text-[10px] text-[var(--muted)] font-semibold mt-1">
+                  {progressPct >= 100 ? '🎉 8h target reached!' : `${fmtShort(elapsed)} of 8h`}
                 </div>
               </div>
 
