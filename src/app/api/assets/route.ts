@@ -35,12 +35,15 @@ export async function POST(req: Request) {
   const asset = await prisma.asset.create({
     data: {
       name: body.name,
+      tagId: body.tagId || null,
+      photoUrl: body.photoUrl || null,
       category: body.category,
       brand: body.brand,
       model: body.model,
       serialNumber: body.serialNumber,
       condition: body.condition || 'Good',
       status: body.assignedTo ? 'Assigned' : 'Available',
+      location: body.location || 'employee',
       assignedTo: body.assignedTo || null,
       assignedAt: body.assignedTo ? new Date() : null,
       purchaseDate: body.purchaseDate ? new Date(body.purchaseDate) : null,

@@ -453,6 +453,7 @@ model Asset {
   serialNumber   String?
   condition      String    @default("Good")
   status         String    @default("Available")
+  location       String    @default("employee")
   assignedTo     String?
   assignedUser   User?     @relation("UserAssets", fields: [assignedTo], references: [id])
   assignedAt     DateTime?
