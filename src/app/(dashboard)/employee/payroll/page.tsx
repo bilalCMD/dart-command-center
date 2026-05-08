@@ -37,10 +37,10 @@ export default function EmployeePayrollPage() {
   if (payrolls.length === 0) {
     return (
       <div className="p-6 max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">💰 My Payroll</h1>
+        <h1 className="text-2xl font-bold mb-6">My Payslip</h1>
         <div className="bg-white rounded-xl shadow p-8 text-center">
-          <p className="text-gray-400 text-lg">Abhi koi payroll available nahi hai.</p>
-          <p className="text-gray-400 text-sm mt-2">Admin ne abhi publish nahi ki.</p>
+          <p className="text-gray-400 text-lg">No payslips available yet.</p>
+          <p className="text-gray-400 text-sm mt-2">Your admin has not published any payroll yet.</p>
         </div>
       </div>
     );
@@ -48,7 +48,7 @@ export default function EmployeePayrollPage() {
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">💰 My Payroll</h1>
+      <h1 className="text-2xl font-bold mb-6">My Payslip</h1>
 
       <div className="space-y-4">
         {payrolls.map((payroll) => (

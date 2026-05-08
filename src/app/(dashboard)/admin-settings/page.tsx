@@ -169,7 +169,7 @@ export default function AdminSettingsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-[var(--text)]">Settings</h1>
-          <p className="text-xs text-[var(--muted)] mt-0.5">Company-wide aur per-employee configuration</p>
+          <p className="text-xs text-[var(--muted)] mt-0.5">Company-wide and per-employee configuration</p>
         </div>
         {saved && (
           <div className="flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-xl text-green-600 text-sm font-semibold animate-pulse">
@@ -208,14 +208,14 @@ export default function AdminSettingsPage() {
                   <Input type="time" value={company.workEndTime}
                     onChange={(e: any) => set('workEndTime', e.target.value)} />
                 </Field>
-                <Field label="Daily Target Hours" hint="Kitne ghante kaam karna hai">
+                <Field label="Daily Target Hours" hint="Total hours required per day">
                   <div className="relative">
                     <Input type="number" min={1} max={24} value={company.defaultDailyHours}
                       onChange={(e: any) => set('defaultDailyHours', parseInt(e.target.value))} />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--muted)]">hrs</span>
                   </div>
                 </Field>
-                <Field label="Weekly Target Hours" hint="Poore hafte ka target">
+                <Field label="Weekly Target Hours" hint="Total hours required per week">
                   <div className="relative">
                     <Input type="number" min={1} max={168} value={company.defaultWeeklyHours}
                       onChange={(e: any) => set('defaultWeeklyHours', parseInt(e.target.value))} />
@@ -244,7 +244,7 @@ export default function AdminSettingsPage() {
                     );
                   })}
                 </div>
-                <p className="text-[10px] text-[var(--subtle)] mt-2">Red = weekend. Click karo toggle karne ke liye.</p>
+                <p className="text-[10px] text-[var(--subtle)] mt-2">Red = weekend. Click to toggle working days.</p>
               </Field>
             </div>
           </Card>
@@ -253,21 +253,21 @@ export default function AdminSettingsPage() {
           <Card title="Late & Attendance Rules" icon="⚠️">
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-4">
-                <Field label="Grace Period" hint="Is waqt tak late nahi maana jayega">
+                <Field label="Grace Period" hint="Arrivals within this window are not counted as late">
                   <div className="relative">
                     <Input type="number" min={0} max={60} value={company.gracePeriodMins}
                       onChange={(e: any) => set('gracePeriodMins', parseInt(e.target.value))} />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--muted)]">min</span>
                   </div>
                 </Field>
-                <Field label="Late Threshold" hint="Itne mins baad late count hoga">
+                <Field label="Late Threshold" hint="Arrivals after this threshold are marked as late">
                   <div className="relative">
                     <Input type="number" min={0} max={120} value={company.lateThresholdMins}
                       onChange={(e: any) => set('lateThresholdMins', parseInt(e.target.value))} />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--muted)]">min</span>
                   </div>
                 </Field>
-                <Field label="Early Departure" hint="Pehle jane par flag">
+                <Field label="Early Departure" hint="Employee flagged if leaving before this threshold">
                   <div className="relative">
                     <Input type="number" min={0} max={120} value={company.earlyDepartureThresholdMins}
                       onChange={(e: any) => set('earlyDepartureThresholdMins', parseInt(e.target.value))} />
@@ -277,8 +277,8 @@ export default function AdminSettingsPage() {
               </div>
               <div className="flex items-center justify-between py-3 px-4 bg-[var(--surface2)] rounded-xl border border-[var(--border)]">
                 <div>
-                  <p className="text-sm font-semibold text-[var(--text)]">Late aane par note required</p>
-                  <p className="text-[11px] text-[var(--muted)]">Employee ko reason dena hoga</p>
+                  <p className="text-sm font-semibold text-[var(--text)]">Note Required for Late Arrivals</p>
+                  <p className="text-[11px] text-[var(--muted)]">Employee must provide a reason when arriving late</p>
                 </div>
                 <Toggle checked={company.requireNoteOnLate} onChange={v => set('requireNoteOnLate', v)} />
               </div>
@@ -295,7 +295,7 @@ export default function AdminSettingsPage() {
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--muted)]">min</span>
                 </div>
               </Field>
-              <Field label="Max Break" hint="Itne se zyada break nahi">
+              <Field label="Max Break" hint="Maximum allowed break duration per day">
                 <div className="relative">
                   <Input type="number" min={0} max={240} value={company.maxBreakMins}
                     onChange={(e: any) => set('maxBreakMins', parseInt(e.target.value))} />
@@ -311,7 +311,7 @@ export default function AdminSettingsPage() {
               <div className="flex items-center justify-between py-3 px-4 bg-[var(--surface2)] rounded-xl border border-[var(--border)]">
                 <div>
                   <p className="text-sm font-semibold text-[var(--text)]">Auto Clock Out</p>
-                  <p className="text-[11px] text-[var(--muted)]">Is waqt ke baad automatically clock out</p>
+                  <p className="text-[11px] text-[var(--muted)]">Automatically clock out employees after this time</p>
                 </div>
                 <Toggle checked={company.autoClockOutEnabled} onChange={v => set('autoClockOutEnabled', v)} />
               </div>
@@ -326,7 +326,7 @@ export default function AdminSettingsPage() {
               <div className="flex items-center justify-between py-3 px-4 bg-[var(--surface2)] rounded-xl border border-[var(--border)]">
                 <div>
                   <p className="text-sm font-semibold text-[var(--text)]">Overtime Tracking</p>
-                  <p className="text-[11px] text-[var(--muted)]">Extra ghante track karo</p>
+                  <p className="text-[11px] text-[var(--muted)]">Track and record overtime hours worked</p>
                 </div>
                 <Toggle checked={company.overtimeEnabled} onChange={v => set('overtimeEnabled', v)} />
               </div>
@@ -411,7 +411,7 @@ export default function AdminSettingsPage() {
             <Card title={`Override Settings — ${selectedUserName}`} icon="⚙️">
               <div className="space-y-4">
                 <div className="px-3 py-2 bg-blue-500/5 border border-blue-500/20 rounded-lg">
-                  <p className="text-[11px] text-blue-600">Khaali chhoddo = company default use hoga ({company.defaultDailyHours}h/day, {company.defaultWeeklyHours}h/week)</p>
+                  <p className="text-[11px] text-blue-600">Leave blank to use company defaults ({company.defaultDailyHours}h/day, {company.defaultWeeklyHours}h/week)</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Daily Hours Override">
@@ -442,7 +442,7 @@ export default function AdminSettingsPage() {
                 <div className="flex items-center justify-between py-3 px-4 bg-[var(--surface2)] rounded-xl border border-[var(--border)]">
                   <div>
                     <p className="text-sm font-semibold text-[var(--text)]">Remote Employee</p>
-                    <p className="text-[11px] text-[var(--muted)]">WFH — machine punch required nahi</p>
+                    <p className="text-[11px] text-[var(--muted)]">Work From Home — no on-site clock-in required</p>
                   </div>
                   <Toggle checked={empForm.isRemote} onChange={v => setEmpForm(p => ({ ...p, isRemote: v }))} />
                 </div>
