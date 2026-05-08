@@ -232,14 +232,14 @@ export default function ClockPage() {
 
   useEffect(() => {
     if (!isAdmin) {
-      if (isClockedIn && !isOnBreak) {
+      if (isClockedIn) {
         timerRef.current = setInterval(() => setElapsed(p => p + 1), 1000);
       } else {
         if (timerRef.current) clearInterval(timerRef.current);
       }
       return () => { if (timerRef.current) clearInterval(timerRef.current); };
     }
-  }, [isClockedIn, isOnBreak, isAdmin]);
+  }, [isClockedIn, isAdmin]);
 
   useEffect(() => {
     if (!isAdmin) {
