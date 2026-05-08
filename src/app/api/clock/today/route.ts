@@ -94,13 +94,41 @@ export async function GET() {
     // Count breaks today
     const breakCount = events.filter((e) => e.type === 'BREAK_START').length;
 
+    // Build clock-in sessions (only count idle within these windows)
+    const clockSessions: { start: number; end: number }[] = [];
+    let sessStart: Date | null = null;
+    for (const e of events) {
+      if (e.type === 'CLOCK_IN') {
+        sessStart = new Date(e.timestamp);
+      } else if (e.type === 'CLOCK_OUT' && sessStart) {
+        clockSessions.push({ start: sessStart.getTime(), end: new Date(e.timestamp).getTime() });
+        sessStart = null;
+      }
+    }
+    // Still clocked in — session extends to now
+    if (sessStart) {
+      clockSessions.push({ start: sessStart.getTime(), end: Date.now() });
+    }
+
     // Fetch today's idle logs
     const idleLogs = await prisma.idleLog.findMany({
       where: { userId: user!.id, idleFrom: { gte: today } },
       orderBy: { idleFrom: 'asc' },
       select: { idleFrom: true, idleTo: true, seconds: true },
     });
-    const idleSeconds = idleLogs.reduce((sum, l) => sum + l.seconds, 0);
+
+    // Only count idle seconds that fall inside a clocked-in session
+    const idleSeconds = Math.round(idleLogs.reduce((sum, log) => {
+      const from = new Date(log.idleFrom).getTime();
+      const to   = new Date(log.idleTo).getTime();
+      let overlap = 0;
+      for (const s of clockSessions) {
+        const start = Math.max(from, s.start);
+        const end   = Math.min(to, s.end);
+        if (end > start) overlap += (end - start) / 1000;
+      }
+      return sum + overlap;
+    }, 0));
 
     return NextResponse.json({
       // State flags
