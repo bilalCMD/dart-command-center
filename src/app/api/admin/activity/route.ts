@@ -42,7 +42,9 @@ export async function GET(req: NextRequest) {
 
       const totalSeconds = calculateWorkingSeconds(allClockEvents);
       const firstClockIn = allClockEvents.find(e => e.type === 'CLOCK_IN');
-      const lastClockOut = [...allClockEvents].reverse().find(e => e.type === 'CLOCK_OUT');
+      const lastEvent = allClockEvents[allClockEvents.length - 1];
+      const isCurrentlyOut = lastEvent?.type === 'CLOCK_OUT';
+      const lastClockOut = isCurrentlyOut ? lastEvent : null;
 
       const byApp: Record<string, any> = {};
       for (const act of activities) {
@@ -59,6 +61,7 @@ export async function GET(req: NextRequest) {
         totalSeconds,
         clockIn: firstClockIn?.timestamp || null,
         clockOut: lastClockOut?.timestamp || null,
+        isClockedIn: !isCurrentlyOut && !!firstClockIn,
         totalIdleSeconds,
         totalBreakSeconds,
         byApp: Object.values(byApp).sort((a: any, b: any) => b.seconds - a.seconds),
