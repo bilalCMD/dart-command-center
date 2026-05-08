@@ -193,12 +193,13 @@ export default function ActivityMonitorPage() {
               </div>
 
               {/* Summary Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
                 {[
-                  { label: 'Active Time', value: fmtTime(detail.totalSeconds), color: 'var(--orange)' },
-                  { label: 'Idle Time', value: fmtTime(detail.totalIdleSeconds), color: '#f59e0b' },
-                  { label: 'Apps Used', value: otherApps.length, color: 'var(--text)' },
-                  { label: 'Sites Visited', value: chromeSites.length, color: '#3b82f6' },
+                  { label: 'Active Time',   value: fmtTime(detail.totalSeconds),      color: 'var(--orange)' },
+                  { label: 'Break Time',    value: fmtTime(detail.totalBreakSeconds),  color: '#8b5cf6' },
+                  { label: 'Idle Time',     value: fmtTime(detail.totalIdleSeconds),   color: '#f59e0b' },
+                  { label: 'Apps Used',     value: otherApps.length,                   color: 'var(--text)' },
+                  { label: 'Sites Visited', value: chromeSites.length,                 color: '#3b82f6' },
                 ].map(s => (
                   <div key={s.label} style={{ background: '#fff', borderRadius: '14px', border: '1px solid var(--border)', padding: '14px', textAlign: 'center' }}>
                     <div style={{ fontSize: '20px', fontWeight: 800, color: s.color }}>{s.value}</div>

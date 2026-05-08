@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
       }
 
       const totalIdleSeconds = calcIdleWithinSessions(idleLogs, allClockEvents);
+      const totalBreakSeconds = calculateBreakSeconds(allClockEvents);
 
       return NextResponse.json({
         member: members.find(m => m.id === userId),
@@ -59,6 +60,7 @@ export async function GET(req: NextRequest) {
         clockIn: firstClockIn?.timestamp || null,
         clockOut: lastClockOut?.timestamp || null,
         totalIdleSeconds,
+        totalBreakSeconds,
         byApp: Object.values(byApp).sort((a: any, b: any) => b.seconds - a.seconds),
         idleLogs,
       });
@@ -137,6 +139,27 @@ function calcIdleWithinSessions(idleLogs: any[], clockEvents: any[]): number {
     }
     return sum + overlap;
   }, 0));
+}
+
+function calculateBreakSeconds(events: any[]): number {
+  let totalBreak = 0;
+  let breakStart: Date | null = null;
+  for (const e of events) {
+    const t = new Date(e.timestamp);
+    if (e.type === 'BREAK_START') {
+      breakStart = t;
+    } else if (e.type === 'BREAK_END' && breakStart) {
+      totalBreak += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
+      breakStart = null;
+    } else if (e.type === 'CLOCK_OUT' && breakStart) {
+      totalBreak += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
+      breakStart = null;
+    }
+  }
+  if (breakStart) {
+    totalBreak += Math.floor((Date.now() - breakStart.getTime()) / 1000);
+  }
+  return totalBreak;
 }
 
 function calculateWorkingSeconds(events: any[]): number {
