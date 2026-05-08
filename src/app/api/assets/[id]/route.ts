@@ -15,11 +15,20 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const asset = await prisma.asset.update({
     where: { id: params.id },
     data: {
-      ...body,
+      name: body.name,
+      tagId: body.tagId || null,
+      photoUrl: body.photoUrl || null,
+      category: body.category,
+      brand: body.brand || null,
+      model: body.model || null,
+      serialNumber: body.serialNumber || null,
+      condition: body.condition || 'Good',
+      notes: body.notes ?? null,
       status: body.assignedTo ? 'Assigned' : 'Available',
+      assignedTo: body.assignedTo || null,
       assignedAt: body.assignedTo ? new Date() : null,
-      purchaseDate: body.purchaseDate ? new Date(body.purchaseDate) : undefined,
-      purchasePrice: body.purchasePrice ? parseFloat(body.purchasePrice) : undefined,
+      purchaseDate: body.purchaseDate ? new Date(body.purchaseDate) : null,
+      purchasePrice: body.purchasePrice ? parseFloat(body.purchasePrice) : null,
     }
   });
 

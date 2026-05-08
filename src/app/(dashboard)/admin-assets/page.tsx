@@ -73,10 +73,13 @@ export default function AdminAssetsPage() {
       : form.notes;
     const finalAssignedTo = form.siteLocation ? '' : form.assignedTo;
 
+    // Strip siteLocation — it's UI-only, not a DB field
+    const { siteLocation, ...formData } = form;
+
     const url    = editingAsset ? `/api/assets/${editingAsset.id}` : '/api/assets';
     const method = editingAsset ? 'PATCH' : 'POST';
     await fetch(url, { method, headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, notes: finalNotes, assignedTo: finalAssignedTo }) });
+      body: JSON.stringify({ ...formData, notes: finalNotes, assignedTo: finalAssignedTo }) });
     setShowModal(false); setEditingAsset(null); resetForm(); loadData();
   }
 
