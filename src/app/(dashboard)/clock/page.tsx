@@ -146,6 +146,7 @@ export default function ClockPage() {
   const [elapsed, setElapsed]             = useState(0);
   const [breakSeconds, setBreakSeconds]   = useState(0);
   const [breakCount, setBreakCount]       = useState(0);
+  const [idleSeconds, setIdleSeconds]     = useState(0);
   const [events, setEvents]               = useState<any[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [errorMsg, setErrorMsg]           = useState('');
@@ -191,6 +192,7 @@ export default function ClockPage() {
       setElapsed(data.workingSeconds || data.totalSeconds || 0);
       setBreakSeconds(data.breakSeconds || 0);
       setBreakCount(data.breakCount || 0);
+      setIdleSeconds(data.idleSeconds || 0);
       setEvents(data.events || []);
       setSessionStart(data.currentSessionStart ? new Date(data.currentSessionStart) : null);
       setBreakStart(data.currentBreakStart ? new Date(data.currentBreakStart) : null);
@@ -604,9 +606,16 @@ export default function ClockPage() {
               )}
 
               {(breakSeconds > 0 && !isOnBreak) && (
-                <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200">
+                <div className="inline-flex items-center gap-2 mb-3 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200">
                   <Coffee size={11} className="text-amber-600" />
                   <span className="text-[11px] font-bold text-amber-700">Break taken: {fmtShort(breakSeconds)}{breakCount > 1 ? ` · ${breakCount} breaks` : ''}</span>
+                </div>
+              )}
+
+              {idleSeconds > 0 && (
+                <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200">
+                  <AlarmClock size={11} className="text-slate-400" />
+                  <span className="text-[11px] font-bold text-slate-500">Idle time: {fmtShort(idleSeconds)}</span>
                 </div>
               )}
 
@@ -619,8 +628,15 @@ export default function ClockPage() {
                 <div className="w-full bg-[var(--surface2)] rounded-full h-2 overflow-hidden">
                   <div className="h-full rounded-full dart-gradient transition-all duration-1000" style={{ width: `${progressPct}%` }} />
                 </div>
-                <div className="text-[10px] text-[var(--muted)] font-semibold mt-1">
-                  {progressPct >= 100 ? '🎉 8h target reached!' : `${fmtShort(elapsed)} of 8h`}
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-[10px] text-[var(--muted)] font-semibold">
+                    {progressPct >= 100 ? '🎉 8h target reached!' : `${fmtShort(elapsed)} of 8h`}
+                  </span>
+                  {idleSeconds > 0 && (
+                    <span className="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
+                      <AlarmClock size={10} /> {fmtShort(idleSeconds)} idle
+                    </span>
+                  )}
                 </div>
               </div>
 

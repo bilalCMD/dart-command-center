@@ -94,6 +94,14 @@ export async function GET() {
     // Count breaks today
     const breakCount = events.filter((e) => e.type === 'BREAK_START').length;
 
+    // Fetch today's idle logs
+    const idleLogs = await prisma.idleLog.findMany({
+      where: { userId: user!.id, idleFrom: { gte: today } },
+      orderBy: { idleFrom: 'asc' },
+      select: { idleFrom: true, idleTo: true, seconds: true },
+    });
+    const idleSeconds = idleLogs.reduce((sum, l) => sum + l.seconds, 0);
+
     return NextResponse.json({
       // State flags
       isClockedIn,
@@ -112,6 +120,10 @@ export async function GET() {
       // Counts
       breakCount,
       eventCount: events.length,
+
+      // Idle
+      idleSeconds,
+      idleLogs,
 
       // All events for activity log
       events,
