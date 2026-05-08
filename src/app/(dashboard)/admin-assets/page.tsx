@@ -25,7 +25,6 @@ const isSiteAsset = (a: any) => (a.notes || '').startsWith('[SITE]');
 const getSiteLoc  = (notes: string) => { const m = (notes || '').match(/\[LOC:([^\]]*)\]/); return m ? m[1] : ''; };
 const getCleanNotes = (notes: string) => (notes || '').replace(/^\[SITE\]/, '').replace(/\[LOC:[^\]]*\]/, '').trim();
 const encodeSiteNotes = (loc: string, notes: string) => { let r = '[SITE]'; if (loc) r += `[LOC:${loc}]`; if (notes) r += ` ${notes}`; return r; };
-const SITE_LOCATIONS = ['Ground Floor', 'First Floor', 'Meeting Room', 'Server Room', 'Reception', 'Conference Room', 'HR Department', 'Creatives Room', 'Development Room'];
 
 export default function AdminAssetsPage() {
   const [assets, setAssets]         = useState<any[]>([]);
@@ -112,18 +111,9 @@ export default function AdminAssetsPage() {
     setShowModal(true);
   }
 
-  function handleAssignChange(value: string) {
-    if (value.startsWith('SITE:')) {
-      setAssetType('site');
-      setForm(f => ({ ...f, assignedTo: '', siteLocation: value.replace('SITE:', '') }));
-    } else {
-      setForm(f => ({ ...f, assignedTo: value, siteLocation: '' }));
-    }
-  }
-
   const empAssets   = assets.filter(a => !isSiteAsset(a));
   const siteAssets  = assets.filter(a => isSiteAsset(a));
-  const dartAssets  = assets.filter(a => !a.assignedTo && a.status === 'Available');
+  const dartAssets  = assets.filter(a => !isSiteAsset(a) && !a.assignedTo && a.status === 'Available');
 
   const filteredAssets = assets.filter(a => {
     const ms = !search || a.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -456,21 +446,23 @@ export default function AdminAssetsPage() {
                 <input placeholder="Serial Number" value={form.serialNumber} onChange={e => setForm({...form, serialNumber: e.target.value})}
                   className="border border-[var(--border)] px-3 py-2 rounded-xl text-[13px] outline-none focus:border-[var(--orange)] bg-transparent col-span-2" />
 
-                <div className="col-span-2">
-                  <div className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider mb-1.5">Assign To</div>
-                  <select
-                    value={form.siteLocation ? `SITE:${form.siteLocation}` : form.assignedTo}
-                    onChange={e => handleAssignChange(e.target.value)}
-                    className="w-full border border-[var(--border)] px-3 py-2 rounded-xl text-[13px] outline-none focus:border-[var(--orange)] bg-transparent">
+                {assetType === 'site' ? (
+                  <div className="col-span-2">
+                    <div className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider mb-1.5">Location / Area</div>
+                    <input
+                      placeholder="e.g. Ground Floor, Meeting Room, Server Room"
+                      value={form.siteLocation}
+                      onChange={e => setForm({...form, siteLocation: e.target.value})}
+                      className="w-full border border-[var(--border)] px-3 py-2 rounded-xl text-[13px] outline-none focus:border-[var(--orange)] bg-transparent"
+                    />
+                  </div>
+                ) : (
+                  <select value={form.assignedTo} onChange={e => setForm({...form, assignedTo: e.target.value})}
+                    className="border border-[var(--border)] px-3 py-2 rounded-xl text-[13px] outline-none focus:border-[var(--orange)] bg-transparent col-span-2">
                     <option value="">-- Not Assigned --</option>
-                    <optgroup label="Employees">
-                      {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
-                    </optgroup>
-                    <optgroup label="Site Locations">
-                      {SITE_LOCATIONS.map(loc => <option key={loc} value={`SITE:${loc}`}>{loc}</option>)}
-                    </optgroup>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
                   </select>
-                </div>
+                )}
 
                 <input type="date" value={form.purchaseDate} onChange={e => setForm({...form, purchaseDate: e.target.value})}
                   className="border border-[var(--border)] px-3 py-2 rounded-xl text-[13px] outline-none focus:border-[var(--orange)] bg-transparent" />
