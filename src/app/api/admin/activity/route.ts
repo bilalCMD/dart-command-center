@@ -88,18 +88,20 @@ export async function GET(req: NextRequest) {
       const totalSeconds = calculateWorkingSeconds(userClockEvents);
       const totalIdleSeconds = idles.reduce((s, i) => s + i.seconds, 0);
       const topApp = [...acts].sort((a, b) => b.seconds - a.seconds)[0]?.appName || null;
-      
-      // Only show as active if they have clocked in today
-      const hasClockedIn = userClockEvents.some(e => e.type === 'CLOCK_IN');
-      const hasClockedOut = userClockEvents.some(e => e.type === 'CLOCK_OUT');
-      const isCurrentlyActive = hasClockedIn && !hasClockedOut;
+
+      // Use last event to determine current status (handles multiple sessions in a day)
+      const lastEvent = userClockEvents[userClockEvents.length - 1];
+      const isCurrentlyActive =
+        lastEvent?.type === 'CLOCK_IN' ||
+        lastEvent?.type === 'BREAK_END' ||
+        lastEvent?.type === 'BREAK_START';
 
       return {
         ...m,
         totalSeconds,
         totalIdleSeconds,
         topApp,
-        isTracking: hasClockedIn && totalSeconds > 0,
+        isTracking: userClockEvents.some(e => e.type === 'CLOCK_IN') && totalSeconds > 0,
         isOnline: isCurrentlyActive,
       };
     });
