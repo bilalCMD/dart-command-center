@@ -31,7 +31,7 @@ const EMPLOYEE_NAV = [
   { href: '/score', label: 'My Score', icon: Star },
   { href: '/calendar', label: 'Calendar', icon: CalendarFold },
   { href: '/employee/payroll', label: 'My Payslip', icon: FileText },
-  { href: '/admin-assets', label: 'Asset Management', icon: Package },
+  { href: '/my-assets', label: 'Asset Management', icon: Package },
 ];
 
 const ADMIN_NAV = [
