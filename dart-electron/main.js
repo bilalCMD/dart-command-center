@@ -229,7 +229,7 @@ mainWindow.webContents.on('did-finish-load', async () => {
 }
 
 function createTray() {
-  const icon = nativeImage.createEmpty();
+  const icon = nativeImage.createFromPath(path.join(__dirname, 'logo-new.png')).resize({ width: 16, height: 16 });
   tray = new Tray(icon);
   const menu = Menu.buildFromTemplate([
     { label: 'Open Dart', click: () => mainWindow.show() },
@@ -300,6 +300,8 @@ app.whenReady().then(() => {
 
   powerMonitor.on('shutdown', async () => {
     await clockRequest('CLOCK_OUT', 'Auto - shutdown');
+    // Small pause so the HTTP request has time to finish before OS kills process
+    await new Promise(r => setTimeout(r, 1500));
   });
 
   powerMonitor.on('resume', async () => {

@@ -10,13 +10,9 @@ const clockSchema = z.object({
 });
 
 async function getShiftCutoff(userId: string): Promise<Date> {
-  const empSettings = await prisma.employeeSettings.findUnique({ where: { userId } });
-  const shiftStart = empSettings?.workStartTime || '09:00';
-  const [hours, minutes] = shiftStart.split(':').map(Number);
   const now = new Date();
   const cutoff = new Date();
-  cutoff.setHours(hours, minutes, 0, 0);
-  if (now < cutoff) cutoff.setDate(cutoff.getDate() - 1);
+  cutoff.setHours(0, 0, 0, 0); // Midnight se
   return cutoff;
 }
 

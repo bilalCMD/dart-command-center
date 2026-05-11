@@ -14,7 +14,7 @@
       "output": "dist"
     },
     "win": {
-      "icon": "dart-logo.svg",
+      "icon": "logo-new.png",
       "target": [
         {
           "target": "nsis",
