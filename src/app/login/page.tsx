@@ -133,6 +133,7 @@ export default function LoginPage() {
                       disabled={loading}
                       autoFocus
                       placeholder="you@dartmarketing.io"
+                      list="email-suggestions"
                       className="w-full pl-9 pr-3 py-3 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[14px] text-[var(--text)] placeholder:text-[var(--subtle)] focus:outline-none focus:border-[var(--orange)] focus:bg-white transition-all disabled:opacity-50"
                     />
                   </div>
