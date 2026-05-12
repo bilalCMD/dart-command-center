@@ -2,12 +2,22 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAuth } from '@/lib/session';
 
-// Helper: get local date string YYYY-MM-DD without UTC conversion
-function toLocalDateKey(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
+const PKT_OFFSET = 5 * 60; // PKT = UTC+5 in minutes
+
+function toPKTDateKey(date: Date): string {
+  const pkt = new Date(date.getTime() + PKT_OFFSET * 60 * 1000);
+  const y = pkt.getUTCFullYear();
+  const m = String(pkt.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(pkt.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+}
+
+function pktMidnight(daysAgo: number): Date {
+  const now = new Date();
+  const pktNow = new Date(now.getTime() + PKT_OFFSET * 60 * 1000);
+  pktNow.setUTCHours(0, 0, 0, 0);
+  pktNow.setUTCDate(pktNow.getUTCDate() - daysAgo);
+  return new Date(pktNow.getTime() - PKT_OFFSET * 60 * 1000);
 }
 
 export async function GET(req: Request) {
@@ -15,24 +25,12 @@ export async function GET(req: Request) {
   if (error) return error;
 
   const { searchParams } = new URL(req.url);
-  const filter = searchParams.get('filter') || 'week'; // 'day' | 'week' | 'month'
+  const filter = searchParams.get('filter') || 'week';
 
   try {
-    const now = new Date();
+    const totalDays = filter === 'day' ? 1 : filter === 'week' ? 7 : 30;
+    const startDate = pktMidnight(totalDays - 1);
 
-    // startDate: beginning of range (local midnight)
-    const startDate = new Date(now);
-    if (filter === 'day') {
-      startDate.setHours(0, 0, 0, 0);
-    } else if (filter === 'week') {
-      startDate.setDate(now.getDate() - 6);
-      startDate.setHours(0, 0, 0, 0);
-    } else {
-      startDate.setDate(now.getDate() - 29);
-      startDate.setHours(0, 0, 0, 0);
-    }
-
-    // Fetch all events in range for this user
     const events = await prisma.clockEvent.findMany({
       where: {
         userId: user!.id,
@@ -41,8 +39,10 @@ export async function GET(req: Request) {
       orderBy: { timestamp: 'asc' },
     });
 
-    // Build empty dayMap using LOCAL date keys
-    const totalDays = filter === 'day' ? 1 : filter === 'week' ? 7 : 30;
+    const now = new Date();
+    const todayKey = toPKTDateKey(now);
+
+    // Build dayMap
     const dayMap: Record<string, {
       date: string;
       label: string;
@@ -51,13 +51,11 @@ export async function GET(req: Request) {
     }> = {};
 
     for (let i = totalDays - 1; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(now.getDate() - i);
-      d.setHours(0, 0, 0, 0);
-      const key = toLocalDateKey(d); // ✅ local date, no UTC shift
+      const d = pktMidnight(i);
+      const key = toPKTDateKey(d);
       dayMap[key] = {
         date: key,
-        label: d.toLocaleDateString('en-US', {
+        label: new Date(d.getTime() + PKT_OFFSET * 60 * 1000).toLocaleDateString('en-US', {
           weekday: 'short',
           ...(filter === 'month' ? { day: 'numeric' } : {}),
         }),
@@ -66,17 +64,15 @@ export async function GET(req: Request) {
       };
     }
 
-    // Group events by LOCAL date key
+    // Group by PKT date
     const eventsByDay: Record<string, typeof events> = {};
     for (const e of events) {
-      const key = toLocalDateKey(new Date(e.timestamp)); // ✅ local date
+      const key = toPKTDateKey(new Date(e.timestamp));
       if (!eventsByDay[key]) eventsByDay[key] = [];
       eventsByDay[key].push(e);
     }
 
-    // Process sessions per day
-    const todayKey = toLocalDateKey(now);
-
+    // Process sessions
     for (const [date, dayEvents] of Object.entries(eventsByDay)) {
       if (!dayMap[date]) continue;
 
@@ -100,7 +96,6 @@ export async function GET(req: Request) {
         }
       }
 
-      // If still clocked in today
       if (activeSince && date === todayKey) {
         const dur = Math.floor((Date.now() - activeSince.getTime()) / 1000);
         totalSeconds += dur;
