@@ -855,7 +855,122 @@ function getEventConfig(type: string) {
   }
 }
 
+function DayDetailModal({ day, onClose }: { day: any; onClose: () => void }) {
+  const fmtS = (s: number) => { if (!s || s <= 0) return '0m'; const h = Math.floor(s/3600); const m = Math.floor((s%3600)/60); return h > 0 ? `${h}h ${m}m` : `${m}m`; };
+  const fmtT = (d: string) => new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const dateLabel = new Date(day.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const metTarget = day.seconds >= 8 * 3600;
+  const totalBreak = day.sessions?.reduce((s: number, sess: any) => s + (sess.breakDuration || 0), 0) || 0;
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" style={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <div className={`px-6 py-5 flex items-start justify-between shrink-0 ${metTarget ? 'dart-gradient' : 'bg-[var(--surface2)]'}`}>
+          <div>
+            <div className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${metTarget ? 'text-white/70' : 'text-[var(--muted)]'}`}>Daily Summary</div>
+            <div className={`text-[16px] font-black ${metTarget ? 'text-white' : 'text-[var(--text)]'}`}>{dateLabel}</div>
+            <div className={`text-[11px] mt-0.5 ${metTarget ? 'text-white/70' : 'text-[var(--muted)]'}`}>
+              {metTarget ? '✅ Target Met!' : '⚠️ Below 8h target'}
+            </div>
+          </div>
+          <button onClick={onClose} className={`w-8 h-8 rounded-full flex items-center justify-center border-none cursor-pointer ${metTarget ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-[var(--border)] text-[var(--muted)]'}`}>
+            <X size={12} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto px-6 py-5 space-y-5 flex-1">
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Work Time', value: fmtS(day.seconds), icon: <Timer size={14} className="text-[var(--orange)]" />, bg: 'bg-orange-50 border-orange-100' },
+              { label: 'Sessions', value: `${day.sessions?.length || 0}`, icon: <Activity size={14} className="text-blue-500" />, bg: 'bg-blue-50 border-blue-100' },
+              { label: 'Target', value: metTarget ? 'Met ✓' : 'Not Met', icon: <TrendingUp size={14} className={metTarget ? 'text-emerald-500' : 'text-amber-500'} />, bg: metTarget ? 'bg-emerald-50 border-emerald-100' : 'bg-amber-50 border-amber-100' },
+            ].map(s => (
+              <div key={s.label} className={`rounded-xl border p-3 text-center ${s.bg}`}>
+                <div className="flex justify-center mb-1">{s.icon}</div>
+                <div className="text-[14px] font-black text-[var(--text)]">{s.value}</div>
+                <div className="text-[9px] text-[var(--muted)] font-bold uppercase tracking-wider mt-0.5">{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Sessions */}
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)] mb-3">Sessions · {day.sessions?.length || 0}</div>
+            <div className="space-y-2">
+              {(day.sessions || []).map((s: any, i: number) => (
+                <div key={i} className="bg-[var(--surface2)] border border-[var(--border)] rounded-xl px-4 py-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold text-[var(--muted)] uppercase">Session {i + 1}</span>
+                    <span className="text-[12px] font-black text-[var(--text)]">{fmtS(s.duration)}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5 text-[12px] font-semibold text-emerald-600">
+                      <LogIn size={11} /> {fmtT(s.clockIn)}
+                    </div>
+                    {s.clockOut ? (
+                      <div className="flex items-center gap-1.5 text-[12px] font-semibold text-red-500">
+                        <LogOut size={11} /> {fmtT(s.clockOut)}
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-emerald-600 font-bold animate-pulse">● Active</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {(!day.sessions || day.sessions.length === 0) && (
+                <div className="text-center py-6 text-[var(--muted)] text-[12px]">No sessions recorded</div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-[var(--border)] shrink-0 flex items-center justify-between bg-[var(--surface2)]">
+          <span className="text-[11px] text-[var(--muted)]">Total: {fmtS(day.seconds)}</span>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-[12px] font-bold border border-[var(--border)] bg-white hover:bg-[var(--surface2)] transition-colors cursor-pointer text-[var(--text)]">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DayRow({ day }: { day: any }) {
+  const [showModal, setShowModal] = useState(false);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isToday  = day.date === todayStr;
+  const fmtS = (s: number) => { if (!s || s <= 0) return '0m'; const h = Math.floor(s/3600); const m = Math.floor((s%3600)/60); return h > 0 ? `${h}h ${m}m` : `${m}m`; };
+  const dateLabel = new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const metTarget = day.seconds >= 8 * 3600;
+  return (
+    <>
+      {showModal && <DayDetailModal day={day} onClose={() => setShowModal(false)} />}
+      <div className="border border-[var(--border)] rounded-xl overflow-hidden cursor-pointer hover:border-[var(--orange)] transition-all group"
+        onClick={() => setShowModal(true)}>
+        <div className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--surface2)] transition-colors">
+          <div className="flex items-center gap-2.5">
+            <div className={`w-2 h-2 rounded-full ${isToday ? 'bg-[var(--orange)]' : metTarget ? 'bg-emerald-400' : 'bg-[var(--border)]'}`} />
+            <span className="text-[12px] font-semibold text-[var(--text)]">{isToday ? 'Today' : dateLabel}</span>
+            <span className="text-[10px] text-[var(--muted)] font-semibold">· {day.sessions?.length || 0} session{(day.sessions?.length || 0) !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-[12px] font-bold ${metTarget ? 'text-emerald-600' : 'text-[var(--text)]'}`}>{fmtS(day.seconds)}</span>
+            <ChevronDown size={12} className="text-[var(--muted)] group-hover:text-[var(--orange)] transition-colors" />
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
   const [open, setOpen] = useState(false);
   const todayStr = new Date().toISOString().split('T')[0];
   const isToday  = day.date === todayStr;
