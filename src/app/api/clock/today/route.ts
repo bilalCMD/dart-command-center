@@ -32,36 +32,33 @@ export async function GET() {
 
     for (const e of events) {
       const t = new Date(e.timestamp);
-
-      if (e.type === 'CLOCK_IN') {
-        if (!firstClockIn) firstClockIn = t;
-        sessionStart = t;
-      } else if (e.type === 'BREAK_START' && !breakStart) {
-        breakStart = t;
-      } else if (e.type === 'BREAK_END' && breakStart) {
-        breakSeconds += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
-        breakStart = null;
-      } else if (e.type === 'CLOCK_OUT') {
-        if (sessionStart) {
-          workingSeconds += Math.floor((t.getTime() - sessionStart.getTime()) / 1000);
-          sessionStart = null;
-        }
-        if (breakStart) {
-          breakSeconds += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
-          breakStart = null;
-        }
-      }
+if (e.type === 'CLOCK_IN') {
+  if (!firstClockIn) firstClockIn = t;
+  sessionStart = t;
+} else if (e.type === 'BREAK_START') {
+  if (!breakStart) breakStart = t;
+} else if (e.type === 'BREAK_END' && breakStart) {
+  breakSeconds += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
+  breakStart = null;
+} else if (e.type === 'CLOCK_OUT') {
+  if (sessionStart) {
+    // Total office time including breaks
+    workingSeconds += Math.floor((t.getTime() - sessionStart.getTime()) / 1000);
+    sessionStart = null;
+  }
+  if (breakStart) {
+    breakSeconds += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
+    breakStart = null;
+  }
+}
     }
 
-    // Add ongoing time
-    const now = Date.now();
-    if (sessionStart) {
-      workingSeconds += Math.floor((now - sessionStart.getTime()) / 1000);
-    }
-    if (breakStart) {
-      breakSeconds += Math.floor((now - breakStart.getTime()) / 1000);
-    }
-
+const now = Date.now();
+if (sessionStart) {
+  // Cap at 12 hours like admin view
+  const elapsed = Math.floor((now - sessionStart.getTime()) / 1000);
+  workingSeconds += Math.min(elapsed, 12 * 60 * 60);
+}
     // Determine current state
     const lastEvent = events[events.length - 1];
     const isOnBreak = lastEvent?.type === 'BREAK_START';
