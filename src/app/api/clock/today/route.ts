@@ -87,18 +87,22 @@ if (sessionStart) {
     // Count breaks today
     const breakCount = events.filter((e) => e.type === 'BREAK_START').length;
 
-    // Build clock-in sessions (only count idle within these windows)
+    // Build active working windows (exclude break time)
     const clockSessions: { start: number; end: number }[] = [];
     let sessStart: Date | null = null;
+    let bStart: Date | null = null;
     for (const e of events) {
-      if (e.type === 'CLOCK_IN') {
+      if (e.type === 'CLOCK_IN' || e.type === 'BREAK_END') {
         sessStart = new Date(e.timestamp);
+      } else if (e.type === 'BREAK_START' && sessStart) {
+        clockSessions.push({ start: sessStart.getTime(), end: new Date(e.timestamp).getTime() });
+        sessStart = null;
+        bStart = new Date(e.timestamp);
       } else if (e.type === 'CLOCK_OUT' && sessStart) {
         clockSessions.push({ start: sessStart.getTime(), end: new Date(e.timestamp).getTime() });
         sessStart = null;
       }
     }
-    // Still clocked in — session extends to now
     if (sessStart) {
       clockSessions.push({ start: sessStart.getTime(), end: Date.now() });
     }
