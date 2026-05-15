@@ -114,18 +114,39 @@ if (sessionStart) {
       select: { idleFrom: true, idleTo: true, seconds: true },
     });
 
-    // Only count idle seconds that fall inside a clocked-in session
-    const idleSeconds = Math.round(idleLogs.reduce((sum, log) => {
-      const from = new Date(log.idleFrom).getTime();
-      const to   = new Date(log.idleTo).getTime();
-      let overlap = 0;
-      for (const s of clockSessions) {
-        const start = Math.max(from, s.start);
-        const end   = Math.min(to, s.end);
-        if (end > start) overlap += (end - start) / 1000;
+// Build break periods to exclude from idle
+const breakPeriods: { start: number; end: number }[] = [];
+let bStart: Date | null = null;
+for (const e of events) {
+  if (e.type === 'BREAK_START') bStart = new Date(e.timestamp);
+  else if (e.type === 'BREAK_END' && bStart) {
+    breakPeriods.push({ start: bStart.getTime(), end: new Date(e.timestamp).getTime() });
+    bStart = null;
+  }
+}
+if (bStart) breakPeriods.push({ start: bStart.getTime(), end: Date.now() });
+
+// Only count idle seconds that fall inside a clocked-in session but NOT in a break
+const idleSeconds = Math.round(idleLogs.reduce((sum, log) => {
+  const from = new Date(log.idleFrom).getTime();
+  const to   = new Date(log.idleTo).getTime();
+  let overlap = 0;
+  for (const s of clockSessions) {
+    const start = Math.max(from, s.start);
+    const end   = Math.min(to, s.end);
+    if (end > start) {
+      // Subtract break overlap
+      let breakOverlap = 0;
+      for (const b of breakPeriods) {
+        const bs = Math.max(start, b.start);
+        const be = Math.min(end, b.end);
+        if (be > bs) breakOverlap += (be - bs) / 1000;
       }
-      return sum + overlap;
-    }, 0));
+      overlap += (end - start) / 1000 - breakOverlap;
+    }
+  }
+  return sum + Math.max(0, overlap);
+}, 0));
 
     return NextResponse.json({
       // State flags
