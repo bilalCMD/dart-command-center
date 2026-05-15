@@ -123,6 +123,12 @@ export async function GET(req: NextRequest) {
 }
 
 function calcIdleWithinSessions(idleLogs: any[], clockEvents: any[]): number {
+  // If no clock events, just sum idle logs as-is
+  if (clockEvents.length === 0) {
+    return Math.round(idleLogs.reduce((sum, log) => sum + (log.seconds || 0), 0));
+  }
+
+  // Build active sessions (CLOCK_IN to CLOCK_OUT or until now if still open)
   const sessions: { start: number; end: number }[] = [];
   let sessStart: Date | null = null;
   for (const e of clockEvents) {
@@ -135,17 +141,43 @@ function calcIdleWithinSessions(idleLogs: any[], clockEvents: any[]): number {
   }
   if (sessStart) sessions.push({ start: sessStart.getTime(), end: Date.now() });
 
-  return Math.round(idleLogs.reduce((sum, log) => {
-    const from = new Date(log.idleFrom).getTime();
-    const to   = new Date(log.idleTo).getTime();
-    let overlap = 0;
-    for (const s of sessions) {
-      const start = Math.max(from, s.start);
-      const end   = Math.min(to, s.end);
-      if (end > start) overlap += (end - start) / 1000;
+  // Sort and merge overlapping idle ranges
+  const ranges = idleLogs
+    .map(log => ({
+      from: new Date(log.idleFrom).getTime(),
+      to: new Date(log.idleTo).getTime(),
+    }))
+    .filter(r => r.to > r.from)
+    .sort((a, b) => a.from - b.from);
+
+  const merged: { from: number; to: number }[] = [];
+  for (const r of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && r.from <= last.to) {
+      last.to = Math.max(last.to, r.to);
+    } else {
+      merged.push({ ...r });
     }
-    return sum + overlap;
-  }, 0));
+  }
+
+  // Calculate overlap with sessions
+  let totalIdle = 0;
+  for (const range of merged) {
+    for (const s of sessions) {
+      const start = Math.max(range.from, s.start);
+      const end = Math.min(range.to, s.end);
+      if (end > start) {
+        totalIdle += (end - start) / 1000;
+      }
+    }
+  }
+
+  // 🔥 SAFETY NET: If sessions logic returns 0 but we have idle data, use direct sum
+  if (totalIdle === 0 && merged.length > 0) {
+    totalIdle = merged.reduce((sum, r) => sum + (r.to - r.from) / 1000, 0);
+  }
+
+  return Math.round(totalIdle);
 }
 
 function calculateBreakSeconds(events: any[]): number {
