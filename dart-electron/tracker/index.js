@@ -13,15 +13,13 @@ let lastActiveTime = Date.now();
 let isIdle = false;
 let idleStart = null;
 let breakWarningShown = false;
-let autoBreakTaken = false;
-
-let sessionCookie = global.sessionCookie || null;
+let sessionCookie = null;
 let mainWindow = null;
 let backendUrl = null;
 
-const IDLE_THRESHOLD = 3 * 60 * 1000;        // 3 min for idle detection
-const BREAK_WARNING_THRESHOLD = 15 * 60 * 1000;  // 15 min - show break popup
-const AUTO_BREAK_THRESHOLD = 60 * 60 * 1000;     // 1 hour - auto break
+// 🔒 Increased thresholds - more lenient
+const IDLE_THRESHOLD = 15 * 60 * 1000;           // 15 min idle detection (was 10)
+const BREAK_WARNING_THRESHOLD = 90 * 60 * 1000;  // 90 min - just notification
 
 function setSessionCookie(cookie) {
   sessionCookie = cookie;
@@ -147,7 +145,6 @@ function sendRequest(path, data, method = 'POST') {
       const headers = { 'Content-Type': 'application/json' };
       if (body) headers['Content-Length'] = Buffer.byteLength(body);
       if (sessionCookie) headers['Cookie'] = sessionCookie;
-      
       const req = lib.request({
         hostname: url.hostname,
         port: url.port || (url.protocol === 'https:' ? 443 : 80),
@@ -185,45 +182,18 @@ async function flush() {
   idleBuffer = [];
 }
 
-// Auto clock-out function
-async function autoClockOut(reason = 'system_lock') {
-  console.log(`🔴 Auto clock-out triggered: ${reason}`);
-  await flush();
-  await sendRequest('/api/clock', { type: 'CLOCK_OUT', note: `Auto: ${reason}` });
-}
+// 🔒 REMOVED: autoClockOut, autoBreak functions
+// Only manual user actions trigger clock events now
 
-// Auto break function
-async function autoBreak(reason = 'long_idle') {
-  console.log(`☕ Auto break started: ${reason}`);
-  await sendRequest('/api/clock', { type: 'BREAK_START', note: `Auto: ${reason}` });
-  autoBreakTaken = true;
-}
-
-// Show notification in app
 function notifyApp(message) {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('tracker-notification', message);
   }
 }
 
-// Show clock-in popup when resumed
-async function showClockInPrompt() {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.show();
-    mainWindow.webContents.send('show-clock-in-prompt');
-  }
-}
-
-// Check current clock status
-async function getClockStatus() {
-  const res = await sendRequest('/api/clock/today', null, 'GET');
-  return res?.data;
-}
-
 function checkMouseAndIdle() {
   const pos = getMousePosition();
   const now = Date.now();
-  
   if (pos) {
     if (pos.x !== lastMouseX || pos.y !== lastMouseY) {
       lastMouseX = pos.x;
@@ -231,39 +201,31 @@ function checkMouseAndIdle() {
       lastActiveTime = now;
     }
   }
-  
+  // Also check if any window is active = user is working
+  try {
+    const { procName } = getActiveWindowInfo();
+    if (procName && procName !== 'Unknown' && procName !== 'Idle') {
+      lastActiveTime = now;
+    }
+  } catch(e) {}
   const idleTime = now - lastActiveTime;
-  
-  // Detect idle start
+
   if (idleTime >= IDLE_THRESHOLD && !isIdle) {
     isIdle = true;
     idleStart = new Date(lastActiveTime + IDLE_THRESHOLD);
-    console.log('💤 User went IDLE at', idleStart.toLocaleTimeString());
-  }
-  
-  // Show break warning at 15 min
-  if (idleTime >= BREAK_WARNING_THRESHOLD && !breakWarningShown && !autoBreakTaken) {
-    breakWarningShown = true;
-    notifyApp({ 
-      type: 'break_warning', 
-      title: 'Take a break?',
-      message: `You've been idle for 15 minutes. Click "Take Break" to log a break.`,
-    });
-    console.log('⚠️ Break warning shown');
-  }
-  
-  // Auto break at 1 hour idle
-  if (idleTime >= AUTO_BREAK_THRESHOLD && !autoBreakTaken) {
-    autoBreak('1_hour_idle');
+    console.log('💤 IDLE at', idleStart.toLocaleTimeString());
   }
 
-// Auto clock-out if idle for more than 1 hour
-  if (idleTime >= 60 * 60 * 1000) {
-    console.log('Auto clock-out: 1 hour idle');
-    autoClockOut('1_hour_idle');
+  // 🔔 Only notification - NO auto-actions
+  if (idleTime >= BREAK_WARNING_THRESHOLD && !breakWarningShown) {
+    breakWarningShown = true;
+    notifyApp({
+      type: 'break_warning',
+      title: 'Time for a break?',
+      message: `You've been idle for 90 minutes. Consider taking a break.`,
+    });
   }
-  
-  // Detect idle end (user came back)
+
   if (idleTime < IDLE_THRESHOLD && isIdle) {
     isIdle = false;
     breakWarningShown = false;
@@ -271,68 +233,50 @@ function checkMouseAndIdle() {
     const seconds = Math.round((idleTo - idleStart) / 1000);
     if (seconds > 30) {
       idleBuffer.push({ idleFrom: idleStart.toISOString(), idleTo: idleTo.toISOString(), seconds });
-      console.log('✅ Idle ended, duration:', seconds, 's');
     }
     idleStart = null;
-    autoBreakTaken = false;
   }
 }
 
-// Setup power monitoring (laptop sleep/lock detection)
+// 🔒 SIMPLIFIED Power monitoring - no auto-actions
 function setupPowerMonitoring(electronApp, powerMonitor) {
   if (!powerMonitor) return;
-  
-  // System suspend (laptop closed/sleep)
+
   powerMonitor.on('suspend', async () => {
-    console.log('🔌 System SUSPENDED - auto clock-out');
-    await autoClockOut('system_sleep');
+    console.log('🔌 SUSPENDED - flushing data (no auto clock-out)');
+    await flush();
   });
-  
-  // System resume (laptop opened)
+
   powerMonitor.on('resume', async () => {
-    console.log('☀️ System RESUMED');
+    console.log('☀️ RESUMED');
     lastActiveTime = Date.now();
     isIdle = false;
     breakWarningShown = false;
-    autoBreakTaken = false;
-    setTimeout(() => showClockInPrompt(), 2000);
   });
-  
-  // Screen lock
+
   powerMonitor.on('lock-screen', async () => {
-    console.log('🔒 Screen LOCKED - auto clock-out');
-    await autoClockOut('screen_locked');
+    console.log('🔒 LOCKED - no auto-action');
   });
-  
-  // Screen unlock
+
   powerMonitor.on('unlock-screen', async () => {
-    console.log('🔓 Screen UNLOCKED');
+    console.log('🔓 UNLOCKED');
     lastActiveTime = Date.now();
     isIdle = false;
-    setTimeout(() => showClockInPrompt(), 2000);
   });
-  
-  // Shutdown
+
   powerMonitor.on('shutdown', async (e) => {
-    console.log('⛔ System SHUTDOWN');
-    e.preventDefault();
-    await autoClockOut('system_shutdown');
+    console.log('⛔ SHUTDOWN - flushing data (no auto clock-out)');
+    await flush();
     electronApp.quit();
   });
 }
 
 function startTracking(baseUrl, win, electronApp, powerMonitor) {
-  console.log('🚀 Tracking started, backend:', baseUrl);
+  console.log('🚀 Tracking started:', baseUrl);
   backendUrl = baseUrl;
   mainWindow = win;
-  
-  // Setup power events
   if (powerMonitor) setupPowerMonitoring(electronApp, powerMonitor);
-  
-  // Mouse + idle check every 5s
   mouseCheckInterval = setInterval(() => { checkMouseAndIdle(); }, 5000);
-  
-  // App tracking every 10s
   trackingInterval = setInterval(() => {
     if (isIdle) return;
     const { procName, title } = getActiveWindowInfo();
@@ -347,8 +291,6 @@ function startTracking(baseUrl, win, electronApp, powerMonitor) {
       }
     }
   }, 10000);
-  
-  // Flush every 60s
   flushInterval = setInterval(() => { flush(); }, 60000);
 }
 

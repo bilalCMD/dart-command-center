@@ -94,20 +94,24 @@ export async function GET(req: NextRequest) {
       const totalIdleSeconds = calcIdleWithinSessions(idles, userClockEvents);
       const topApp = [...acts].sort((a, b) => b.seconds - a.seconds)[0]?.appName || null;
 
-      // Use last event to determine current status (handles multiple sessions in a day)
+      // Use last event to determine current status
       const lastEvent = userClockEvents[userClockEvents.length - 1];
       const isCurrentlyActive =
         lastEvent?.type === 'CLOCK_IN' ||
         lastEvent?.type === 'BREAK_END' ||
         lastEvent?.type === 'BREAK_START';
+      const isOnBreak = lastEvent?.type === 'BREAK_START';
+      const totalBreakSeconds = calculateBreakSeconds(userClockEvents);
 
       return {
         ...m,
         totalSeconds,
         totalIdleSeconds,
+        totalBreakSeconds,
         topApp,
         isTracking: userClockEvents.some(e => e.type === 'CLOCK_IN') && totalSeconds > 0,
         isOnline: isCurrentlyActive,
+        isOnBreak,
       };
     });
 

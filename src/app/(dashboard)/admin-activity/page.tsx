@@ -130,9 +130,16 @@ export default function ActivityMonitorPage() {
               {/* Active Members */}
               {activeMembers.length > 0 && (
                 <>
-                  <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Active Now</span>
+                  <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Active Now</span>
+                    </div>
+                    {activeMembers.filter(m => m.isOnBreak).length > 0 && (
+                      <span style={{ fontSize: '9px', fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '2px 6px', borderRadius: '99px' }}>
+                        ☕ {activeMembers.filter(m => m.isOnBreak).length} on break
+                      </span>
+                    )}
                   </div>
                   {activeMembers.map(m => (
                     <MemberRow key={m.id} m={m} selected={selected} onSelect={selectMember} active={m.isOnline} />
@@ -197,7 +204,12 @@ export default function ActivityMonitorPage() {
                       )}
                     </div>
                   </div>
-                  {selected.isOnline && (
+                  {selected.isOnBreak ? (
+                    <span style={{ fontSize: '11px', fontWeight: 700, background: '#fef3c7', color: '#d97706', padding: '4px 10px', borderRadius: '99px', display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f59e0b' }} />
+                      ☕ On Break
+                    </span>
+                  ) : selected.isOnline && (
                     <span style={{ fontSize: '11px', fontWeight: 700, background: '#dcfce7', color: '#16a34a', padding: '4px 10px', borderRadius: '99px', display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
                       <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />
                       Active
@@ -363,6 +375,15 @@ export default function ActivityMonitorPage() {
 
 function MemberRow({ m, selected, onSelect, active }: { m: any; selected: any; onSelect: (m: any) => void; active: boolean }) {
   const isSelected = selected?.id === m.id;
+  const onBreak = m.isOnBreak;
+  
+  // Avatar background: working = orange, on break = yellow, inactive = gray
+  const avatarBg = onBreak 
+    ? 'linear-gradient(135deg, #f59e0b, #fbbf24)'
+    : active 
+      ? 'linear-gradient(135deg, #f97316, #fb923c)' 
+      : '#f1f5f9';
+  
   return (
     <button
       onClick={() => onSelect(m)}
@@ -377,18 +398,32 @@ function MemberRow({ m, selected, onSelect, active }: { m: any; selected: any; o
     >
       <div style={{
         width: '34px', height: '34px', borderRadius: '10px', flexShrink: 0,
-        background: active ? 'linear-gradient(135deg, #f97316, #fb923c)' : '#f1f5f9',
+        background: avatarBg,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '12px', fontWeight: 800, color: active ? '#fff' : 'var(--muted)',
+        position: 'relative',
       }}>
         {m.avatar || m.name?.[0] || '?'}
+        {onBreak && (
+          <span style={{
+            position: 'absolute', bottom: '-2px', right: '-2px',
+            fontSize: '11px', background: '#fff', borderRadius: '50%',
+            width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: '1.5px solid #f59e0b',
+          }}>☕</span>
+        )}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
         <div style={{ fontSize: '10px', color: 'var(--muted)' }}>{m.role}</div>
       </div>
       <div style={{ flexShrink: 0 }}>
-        {active ? (
+        {onBreak ? (
+          <span style={{ fontSize: '10px', fontWeight: 700, color: '#d97706', display: 'flex', alignItems: 'center', gap: '4px', background: '#fef3c7', padding: '3px 8px', borderRadius: '99px' }}>
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
+            On Break
+          </span>
+        ) : active ? (
           <span style={{ fontSize: '11px', fontWeight: 700, color: '#16a34a', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
             {fmtTime(m.totalSeconds)}

@@ -35,8 +35,10 @@ export async function POST(req: NextRequest) {
     }
 
     const { type, fromDate, toDate, reason } = parsed.data;
-    const from = new Date(fromDate);
-    const to = new Date(toDate);
+    
+    // Parse dates as UTC midnight to avoid timezone issues
+    const from = new Date(fromDate + 'T00:00:00.000Z');
+    const to = new Date(toDate + 'T00:00:00.000Z');
 
     if (from > to) {
       return NextResponse.json(
@@ -45,8 +47,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const daysRequested =
-      Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    // Calculate days inclusive (same day = 1 day, next day = 2 days)
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const daysRequested = Math.round((to.getTime() - from.getTime()) / msPerDay) + 1;
 
     if (type !== 'UNPAID') {
       const currentYear = new Date().getFullYear();

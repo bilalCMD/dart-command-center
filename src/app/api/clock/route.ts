@@ -54,27 +54,64 @@ export async function POST(req: NextRequest) {
     });
     const lastType = lastEvent?.type || 'NONE';
 
+  // 🔒 STRICT MODE - No automatic event creation
+    // Only allow valid state transitions
+    
     if (type === 'CLOCK_IN') {
-      // No auto clock-out — just allow clock in
-      if (lastType === 'BREAK_START') {
-        await prisma.clockEvent.create({ data: { userId: user!.id, type: 'BREAK_END', note: 'Auto: end break' } });
+      // Already clocked in? Return success silently (no duplicate)
+      if (lastType === 'CLOCK_IN' || lastType === 'BREAK_END') {
+        return NextResponse.json({
+          event: lastEvent,
+          todaySummary: { workingSeconds: 0, breakSeconds: 0, totalSeconds: 0, isClockedIn: true, isOnBreak: false },
+          message: 'Already clocked in',
+        });
       }
-    } else if (type === 'CLOCK_OUT') {
+      // On break? Don't allow clock-in (user must end break first)
+      if (lastType === 'BREAK_START') {
+        return NextResponse.json({
+          event: lastEvent,
+          todaySummary: { workingSeconds: 0, breakSeconds: 0, totalSeconds: 0, isClockedIn: true, isOnBreak: true },
+          message: 'You are on break',
+        });
+      }
+    }
+    else if (type === 'CLOCK_OUT') {
+      // Already out? Silent success
       if (lastType === 'CLOCK_OUT' || lastType === 'NONE') {
-        return NextResponse.json({ event: null, todaySummary: { workingSeconds: 0, breakSeconds: 0, totalSeconds: 0, isClockedIn: false, isOnBreak: false }, message: 'Already clocked out' });
+        return NextResponse.json({
+          event: null,
+          todaySummary: { workingSeconds: 0, breakSeconds: 0, totalSeconds: 0, isClockedIn: false, isOnBreak: false },
+          message: 'Already clocked out',
+        });
       }
-      if (lastType === 'BREAK_START') {
-        await prisma.clockEvent.create({ data: { userId: user!.id, type: 'BREAK_END', note: 'Auto: end break before clock-out' } });
-      }
-    } else if (type === 'BREAK_START') {
+      // On break? Allow direct clock-out (no auto break-end)
+    }
+    else if (type === 'BREAK_START') {
+      // Not clocked in? Reject silently
       if (lastType === 'NONE' || lastType === 'CLOCK_OUT') {
-        await prisma.clockEvent.create({ data: { userId: user!.id, type: 'CLOCK_IN', note: 'Auto: clock-in before break' } });
-      } else if (lastType === 'BREAK_START') {
-        return NextResponse.json({ event: null, todaySummary: { workingSeconds: 0, breakSeconds: 0, totalSeconds: 0, isClockedIn: true, isOnBreak: true }, message: 'Already on break' });
+        return NextResponse.json({
+          event: null,
+          todaySummary: { workingSeconds: 0, breakSeconds: 0, totalSeconds: 0, isClockedIn: false, isOnBreak: false },
+          message: 'Not clocked in - please clock in first',
+        }, { status: 200 });
       }
-    } else if (type === 'BREAK_END') {
+      // Already on break? Silent success
+      if (lastType === 'BREAK_START') {
+        return NextResponse.json({
+          event: lastEvent,
+          todaySummary: { workingSeconds: 0, breakSeconds: 0, totalSeconds: 0, isClockedIn: true, isOnBreak: true },
+          message: 'Already on break',
+        });
+      }
+    }
+    else if (type === 'BREAK_END') {
+      // Not on break? Silent success
       if (lastType !== 'BREAK_START') {
-        return NextResponse.json({ event: null, todaySummary: { workingSeconds: 0, breakSeconds: 0, totalSeconds: 0, isClockedIn: lastType === 'CLOCK_IN' || lastType === 'BREAK_END', isOnBreak: false }, message: 'No active break' });
+        return NextResponse.json({
+          event: null,
+          todaySummary: { workingSeconds: 0, breakSeconds: 0, totalSeconds: 0, isClockedIn: lastType === 'CLOCK_IN' || lastType === 'BREAK_END', isOnBreak: false },
+          message: 'No active break',
+        });
       }
     }
 

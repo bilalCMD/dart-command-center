@@ -261,6 +261,7 @@ app.whenReady().then(() => {
   let trackerStarted = false;
   const tryStartTracker = setInterval(async () => {
     const hasCookie = await captureCookies();
+    console.log('Cookie check - hasCookie:', hasCookie, 'isLoggedIn:', isLoggedIn, 'currentCookie:', currentCookie ? 'YES' : 'NO');
     if (hasCookie && !trackerStarted) {
       trackerStarted = true;
       clearInterval(tryStartTracker);
@@ -294,9 +295,7 @@ app.whenReady().then(() => {
     await clockRequest('CLOCK_OUT', 'Auto - suspended');
   });
 
-  powerMonitor.on('lock-screen', async () => {
-    await clockRequest('CLOCK_OUT', 'Auto - locked');
-  });
+
 
   powerMonitor.on('shutdown', async () => {
     await clockRequest('CLOCK_OUT', 'Auto - shutdown');

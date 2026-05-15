@@ -67,6 +67,10 @@
     "electron": "^35.0.0",
     "electron-builder": "^26.0.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bilalCMD/dart-command-center"
+  },
   "license": "ISC",
   "type": "commonjs"
 }
