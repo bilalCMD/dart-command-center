@@ -32,33 +32,32 @@ export async function GET() {
 
     for (const e of events) {
       const t = new Date(e.timestamp);
-if (e.type === 'CLOCK_IN') {
-  if (!firstClockIn) firstClockIn = t;
-  sessionStart = t;
-} else if (e.type === 'BREAK_START') {
-  if (!breakStart) breakStart = t;
-} else if (e.type === 'BREAK_END' && breakStart) {
-  breakSeconds += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
-  breakStart = null;
-} else if (e.type === 'CLOCK_OUT') {
-  if (sessionStart) {
-    // Total office time including breaks
-    workingSeconds += Math.floor((t.getTime() - sessionStart.getTime()) / 1000);
-    sessionStart = null;
-  }
-  if (breakStart) {
-    breakSeconds += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
-    breakStart = null;
-  }
-}
+      if (e.type === 'CLOCK_IN') {
+        if (!firstClockIn) firstClockIn = t;
+        sessionStart = t;
+      } else if (e.type === 'BREAK_START') {
+        if (!breakStart) breakStart = t;
+      } else if (e.type === 'BREAK_END' && breakStart) {
+        breakSeconds += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
+        breakStart = null;
+      } else if (e.type === 'CLOCK_OUT') {
+        if (sessionStart) {
+          workingSeconds += Math.floor((t.getTime() - sessionStart.getTime()) / 1000);
+          sessionStart = null;
+        }
+        if (breakStart) {
+          breakSeconds += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
+          breakStart = null;
+        }
+      }
     }
 
-const now = Date.now();
-if (sessionStart) {
-  // Cap at 12 hours like admin view
-  const elapsed = Math.floor((now - sessionStart.getTime()) / 1000);
-  workingSeconds += Math.min(elapsed, 12 * 60 * 60);
-}
+    const now = Date.now();
+    if (sessionStart) {
+      const elapsed = Math.floor((now - sessionStart.getTime()) / 1000);
+      workingSeconds += Math.min(elapsed, 12 * 60 * 60);
+    }
+
     // Determine current state
     const lastEvent = events[events.length - 1];
     const isOnBreak = lastEvent?.type === 'BREAK_START';
@@ -67,7 +66,7 @@ if (sessionStart) {
       lastEvent?.type === 'BREAK_END' ||
       isOnBreak;
 
-    // Find current session start (last CLOCK_IN or BREAK_END)
+    // Find current session start
     let currentSessionStart: Date | null = null;
     if (isClockedIn && !isOnBreak) {
       for (let i = events.length - 1; i >= 0; i--) {
@@ -84,20 +83,17 @@ if (sessionStart) {
       currentBreakStart = new Date(lastEvent.timestamp);
     }
 
-    // Count breaks today
     const breakCount = events.filter((e) => e.type === 'BREAK_START').length;
 
-    // Build active working windows (exclude break time)
+    // Build active working sessions (exclude break time)
     const clockSessions: { start: number; end: number }[] = [];
     let sessStart: Date | null = null;
-    let bStart: Date | null = null;
     for (const e of events) {
       if (e.type === 'CLOCK_IN' || e.type === 'BREAK_END') {
         sessStart = new Date(e.timestamp);
       } else if (e.type === 'BREAK_START' && sessStart) {
         clockSessions.push({ start: sessStart.getTime(), end: new Date(e.timestamp).getTime() });
         sessStart = null;
-        bStart = new Date(e.timestamp);
       } else if (e.type === 'CLOCK_OUT' && sessStart) {
         clockSessions.push({ start: sessStart.getTime(), end: new Date(e.timestamp).getTime() });
         sessStart = null;
@@ -114,64 +110,53 @@ if (sessionStart) {
       select: { idleFrom: true, idleTo: true, seconds: true },
     });
 
-// Build break periods to exclude from idle
-const breakPeriods: { start: number; end: number }[] = [];
-let bStart: Date | null = null;
-for (const e of events) {
-  if (e.type === 'BREAK_START') bStart = new Date(e.timestamp);
-  else if (e.type === 'BREAK_END' && bStart) {
-    breakPeriods.push({ start: bStart.getTime(), end: new Date(e.timestamp).getTime() });
-    bStart = null;
-  }
-}
-if (bStart) breakPeriods.push({ start: bStart.getTime(), end: Date.now() });
-
-// Only count idle seconds that fall inside a clocked-in session but NOT in a break
-const idleSeconds = Math.round(idleLogs.reduce((sum, log) => {
-  const from = new Date(log.idleFrom).getTime();
-  const to   = new Date(log.idleTo).getTime();
-  let overlap = 0;
-  for (const s of clockSessions) {
-    const start = Math.max(from, s.start);
-    const end   = Math.min(to, s.end);
-    if (end > start) {
-      // Subtract break overlap
-      let breakOverlap = 0;
-      for (const b of breakPeriods) {
-        const bs = Math.max(start, b.start);
-        const be = Math.min(end, b.end);
-        if (be > bs) breakOverlap += (be - bs) / 1000;
+    // Build break periods to exclude from idle
+    const breakPeriods: { start: number; end: number }[] = [];
+    let breakP: Date | null = null;
+    for (const e of events) {
+      if (e.type === 'BREAK_START') {
+        breakP = new Date(e.timestamp);
+      } else if (e.type === 'BREAK_END' && breakP) {
+        breakPeriods.push({ start: breakP.getTime(), end: new Date(e.timestamp).getTime() });
+        breakP = null;
       }
-      overlap += (end - start) / 1000 - breakOverlap;
     }
-  }
-  return sum + Math.max(0, overlap);
-}, 0));
+    if (breakP) breakPeriods.push({ start: breakP.getTime(), end: Date.now() });
+
+    // Only count idle seconds that fall inside a clocked-in session but NOT in a break
+    const idleSeconds = Math.round(idleLogs.reduce((sum, log) => {
+      const from = new Date(log.idleFrom).getTime();
+      const to = new Date(log.idleTo).getTime();
+      let overlap = 0;
+      for (const s of clockSessions) {
+        const start = Math.max(from, s.start);
+        const end = Math.min(to, s.end);
+        if (end > start) {
+          let breakOverlap = 0;
+          for (const b of breakPeriods) {
+            const bs = Math.max(start, b.start);
+            const be = Math.min(end, b.end);
+            if (be > bs) breakOverlap += (be - bs) / 1000;
+          }
+          overlap += (end - start) / 1000 - breakOverlap;
+        }
+      }
+      return sum + Math.max(0, overlap);
+    }, 0));
 
     return NextResponse.json({
-      // State flags
       isClockedIn,
       isOnBreak,
-
-      // Times (in seconds)
       workingSeconds,
       breakSeconds,
-      totalSeconds: workingSeconds, // working time only
-
-      // Timestamps
+      totalSeconds: workingSeconds,
       clockInTime: firstClockIn,
       currentSessionStart,
       currentBreakStart,
-
-      // Counts
       breakCount,
       eventCount: events.length,
-
-      // Idle
       idleSeconds,
       idleLogs,
-
-      // All events for activity log
       events,
     });
   } catch (err: any) {
