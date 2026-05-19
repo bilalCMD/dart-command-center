@@ -140,21 +140,35 @@ function calcIdleWithinSessions(idleLogs: any[], clockEvents: any[]): number {
     return Math.round(idleLogs.reduce((sum, log) => sum + (log.seconds || 0), 0));
   }
 
-  // 🔥 Build ACTIVE WORK sessions (excluding breaks)
-  // Working segment = from CLOCK_IN/BREAK_END to BREAK_START/CLOCK_OUT
+  // Build ACTIVE working sessions (CLOCK_IN/BREAK_END to BREAK_START/CLOCK_OUT)
+  // This excludes break time from sessions
   const sessions: { start: number; end: number }[] = [];
-  let workStart: Date | null = null;
-
+  let sessStart: Date | null = null;
   for (const e of clockEvents) {
-    const t = new Date(e.timestamp);
     if (e.type === 'CLOCK_IN' || e.type === 'BREAK_END') {
-      workStart = t;
-    } else if ((e.type === 'BREAK_START' || e.type === 'CLOCK_OUT') && workStart) {
-      sessions.push({ start: workStart.getTime(), end: t.getTime() });
-      workStart = null;
+      if (!sessStart) sessStart = new Date(e.timestamp);
+    } else if (e.type === 'BREAK_START' && sessStart) {
+      sessions.push({ start: sessStart.getTime(), end: new Date(e.timestamp).getTime() });
+      sessStart = null;
+    } else if (e.type === 'CLOCK_OUT' && sessStart) {
+      sessions.push({ start: sessStart.getTime(), end: new Date(e.timestamp).getTime() });
+      sessStart = null;
     }
   }
-  if (workStart) sessions.push({ start: workStart.getTime(), end: Date.now() });
+  if (sessStart) sessions.push({ start: sessStart.getTime(), end: Date.now() });
+
+  // Build break + AWAY periods to exclude from idle
+  const breakPeriods: { start: number; end: number }[] = [];
+  let breakP: Date | null = null;
+  for (const e of clockEvents) {
+    if (e.type === 'BREAK_START' || e.type === 'AWAY_START') {
+      breakP = new Date(e.timestamp);
+    } else if ((e.type === 'BREAK_END' || e.type === 'AWAY_END') && breakP) {
+      breakPeriods.push({ start: breakP.getTime(), end: new Date(e.timestamp).getTime() });
+      breakP = null;
+    }
+  }
+  if (breakP) breakPeriods.push({ start: breakP.getTime(), end: Date.now() });
 
   // Sort and merge overlapping idle ranges
   const ranges = idleLogs
@@ -175,21 +189,24 @@ function calcIdleWithinSessions(idleLogs: any[], clockEvents: any[]): number {
     }
   }
 
-  // Calculate overlap with sessions
+  // Calculate overlap with active sessions, EXCLUDING break/away time
   let totalIdle = 0;
   for (const range of merged) {
     for (const s of sessions) {
       const start = Math.max(range.from, s.start);
       const end = Math.min(range.to, s.end);
       if (end > start) {
-        totalIdle += (end - start) / 1000;
+        // Subtract break/away overlaps within this idle range
+        let breakOverlap = 0;
+        for (const b of breakPeriods) {
+          const bs = Math.max(start, b.start);
+          const be = Math.min(end, b.end);
+          if (be > bs) breakOverlap += (be - bs) / 1000;
+        }
+        const idleInSession = (end - start) / 1000 - breakOverlap;
+        totalIdle += Math.max(0, idleInSession);
       }
     }
-  }
-
-  // 🔥 SAFETY NET: If sessions logic returns 0 but we have idle data, use direct sum
-  if (totalIdle === 0 && merged.length > 0) {
-    totalIdle = merged.reduce((sum, r) => sum + (r.to - r.from) / 1000, 0);
   }
 
   return Math.round(totalIdle);
