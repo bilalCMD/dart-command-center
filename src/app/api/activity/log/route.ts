@@ -27,7 +27,49 @@ export async function POST(req: NextRequest) {
 
     if (idleLogs?.length) {
       for (const idle of idleLogs) {
-        await prisma.idleLog.create({ data: { userId: u.id, idleFrom: new Date(idle.idleFrom), idleTo: new Date(idle.idleTo), seconds: idle.seconds } });
+        const idleFromDate = new Date(idle.idleFrom);
+        const idleToDate = new Date(idle.idleTo);
+        
+        // 🔒 STRONG dedup: check if overlapping idle log exists for this user
+        const existing = await prisma.idleLog.findFirst({
+          where: {
+            userId: u.id,
+            OR: [
+              {
+                // Same idleFrom within 2 minutes window
+                idleFrom: {
+                  gte: new Date(idleFromDate.getTime() - 120000),
+                  lte: new Date(idleFromDate.getTime() + 120000),
+                },
+              },
+              {
+                // Or overlapping range
+                AND: [
+                  { idleFrom: { lte: idleToDate } },
+                  { idleTo: { gte: idleFromDate } },
+                ]
+              }
+            ]
+          },
+        });
+        
+        if (!existing) {
+          try {
+            await prisma.idleLog.create({ 
+              data: { 
+                userId: u.id, 
+                idleFrom: idleFromDate, 
+                idleTo: idleToDate, 
+                seconds: idle.seconds 
+              } 
+            });
+          } catch (e: any) {
+            // Constraint violation - silently skip
+            console.log('⏭️ Skipped duplicate (DB constraint) for user:', u.id);
+          }
+        } else {
+          console.log('⏭️ Skipped duplicate idle log for user:', u.id);
+        }
       }
     }
 

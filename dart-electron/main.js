@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, session, powerMonitor, Notification } = require('electron');
 const path = require('path');
 const https = require('https');
+const { autoUpdater } = require('electron-updater');
 const { startTracking, stopTracking, setSessionCookie } = require('./tracker/index');
 
 let mainWindow;
@@ -9,6 +10,230 @@ let tray;
 let currentCookie = null;
 let isLoggedIn = false;
 const BASE_URL = 'https://portal.dartwebsite.com';
+
+// 🔒 Single Instance Lock - prevent multiple EXE instances
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  console.log('⚠️ Another instance is already running. Quitting.');
+  app.quit();
+}
+
+app.on('second-instance', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  }
+});
+
+// 🔄 Auto-updater setup
+autoUpdater.autoDownload = true;
+autoUpdater.autoInstallOnAppQuit = true;
+
+autoUpdater.on('update-available', (info) => {
+  console.log('📥 Update available:', info.version);
+  if (Notification.isSupported()) {
+    new Notification({
+      title: '🔄 Update Available',
+      body: `New version ${info.version} is downloading in background...`,
+      silent: true,
+    }).show();
+  }
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  console.log('✅ Update downloaded:', info.version);
+  
+  // Show big update button modal
+  showUpdatePopup(info.version);
+  
+  if (Notification.isSupported()) {
+    new Notification({
+      title: '✅ Update Ready!',
+      body: `Click "Install Now" in app to update to v${info.version}`,
+      silent: false,
+    }).show();
+  }
+});
+
+// 🎨 Beautiful Update Popup
+function showUpdatePopup(version) {
+  const updateWindow = new BrowserWindow({
+    width: 420,
+    height: 360,
+    resizable: false,
+    alwaysOnTop: true,
+    center: true,
+    frame: false,
+    skipTaskbar: false,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+    },
+    title: 'Dart - Update Available',
+  });
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    overflow: hidden;
+    user-select: none;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .drag { -webkit-app-region: drag; position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 1; }
+  .close-btn {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(255,255,255,0.2); border: none; color: white;
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+    font-size: 16px; z-index: 2;
+    -webkit-app-region: no-drag;
+  }
+  .header {
+    padding: 30px 24px 16px;
+    text-align: center;
+    color: white;
+  }
+  .icon {
+    font-size: 48px;
+    margin-bottom: 8px;
+    animation: bounce 2s infinite;
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .title {
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 6px;
+  }
+  .subtitle {
+    font-size: 13px;
+    opacity: 0.9;
+  }
+  .body {
+    background: white;
+    flex: 1;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .version-box {
+    background: linear-gradient(135deg, #f3e8ff, #e0e7ff);
+    padding: 14px;
+    border-radius: 12px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .version-label {
+    font-size: 10px;
+    color: #667eea;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  .version-num {
+    font-size: 24px;
+    font-weight: 900;
+    color: #4c1d95;
+    margin-top: 2px;
+  }
+  .features {
+    font-size: 12px;
+    color: #555;
+    margin-bottom: 16px;
+    line-height: 1.6;
+  }
+  .features .check { color: #22c55e; font-weight: 700; }
+  .btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: all 0.2s;
+  }
+  .btn-install {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+  }
+  .btn-install:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5); }
+  .btn-later {
+    background: #f5f5f5;
+    color: #666;
+    font-size: 12px;
+    padding: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="drag"></div>
+<button class="close-btn" onclick="closeWindow()">×</button>
+
+<div class="header">
+  <div class="icon">🎉</div>
+  <div class="title">Update Available!</div>
+  <div class="subtitle">A new version of Dart Command Center is ready</div>
+</div>
+
+<div class="body">
+  <div>
+    <div class="version-box">
+      <div class="version-label">NEW VERSION</div>
+      <div class="version-num">v${version}</div>
+    </div>
+    
+    <div class="features">
+      <div><span class="check">✓</span> Bug fixes & improvements</div>
+      <div><span class="check">✓</span> Better tracking accuracy</div>
+      <div><span class="check">✓</span> Performance enhancements</div>
+    </div>
+  </div>
+  
+  <div>
+    <button class="btn btn-install" onclick="installNow()">⚡ Install & Restart Now</button>
+    <button class="btn btn-later" onclick="closeWindow()">Remind me later</button>
+  </div>
+</div>
+
+<script>
+  const { ipcRenderer } = require('electron');
+  function installNow() {
+    document.querySelector('.btn-install').textContent = '⏳ Installing...';
+    document.querySelector('.btn-install').style.background = '#22c55e';
+    ipcRenderer.send('install-update-now');
+  }
+  function closeWindow() {
+    ipcRenderer.send('close-update-window');
+  }
+</script>
+</body>
+</html>`;
+
+  updateWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+  
+  // Store reference to close it later
+  global.updateWindow = updateWindow;
+}
+
+autoUpdater.on('error', (err) => {
+  console.error('Update error:', err.message);
+});
 
 async function captureCookies() {
   try {
@@ -52,7 +277,7 @@ function clockRequest(type, note) {
         let data = '';
         res.on('data', d => data += d);
         res.on('end', () => {
-          console.log(`Auto ${type} status:`, res.statusCode);
+          console.log(`Clock ${type} status:`, res.statusCode);
           resolve(res.statusCode);
         });
       });
@@ -201,7 +426,7 @@ function createMainWindow() {
     await captureCookies();
   });
 
-mainWindow.webContents.on('did-finish-load', async () => {
+  mainWindow.webContents.on('did-finish-load', async () => {
     await captureCookies();
   });
 
@@ -217,7 +442,6 @@ mainWindow.webContents.on('did-finish-load', async () => {
   mainWindow.on('close', (e) => {
     e.preventDefault();
     mainWindow.hide();
-    // Show notification that app is still running
     if (Notification.isSupported()) {
       new Notification({
         title: 'Dart still running',
@@ -236,6 +460,7 @@ function createTray() {
     { label: 'Clock In', click: () => clockRequest('CLOCK_IN', 'Manual - tray') },
     { label: 'Clock Out', click: () => clockRequest('CLOCK_OUT', 'Manual - tray') },
     { type: 'separator' },
+    { label: 'Check for Updates', click: () => autoUpdater.checkForUpdates() },
     { label: 'Quit', click: () => { app.exit(0); } },
   ]);
   tray.setToolTip('Dart Command Center');
@@ -247,6 +472,7 @@ app.commandLine.appendSwitch('disk-cache-size', '104857600');
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=512');
 app.commandLine.appendSwitch('ignore-certificate-errors');
 app.commandLine.appendSwitch('allow-insecure-localhost');
+
 app.whenReady().then(() => {
   app.setLoginItemSettings({
     openAtLogin: true,
@@ -257,11 +483,20 @@ app.whenReady().then(() => {
   createMainWindow();
   createTray();
 
-// Wait for cookie before starting tracker
+  // 🔄 Check for updates on startup (after 30 sec)
+  setTimeout(() => {
+    autoUpdater.checkForUpdatesAndNotify();
+  }, 30000);
+
+  // 🔄 Check for updates every hour
+  setInterval(() => {
+    autoUpdater.checkForUpdatesAndNotify();
+  }, 60 * 60 * 1000);
+
+  // Wait for cookie before starting tracker
   let trackerStarted = false;
   const tryStartTracker = setInterval(async () => {
     const hasCookie = await captureCookies();
-    console.log('Cookie check - hasCookie:', hasCookie, 'isLoggedIn:', isLoggedIn, 'currentCookie:', currentCookie ? 'YES' : 'NO');
     if (hasCookie && !trackerStarted) {
       trackerStarted = true;
       clearInterval(tryStartTracker);
@@ -270,40 +505,35 @@ app.whenReady().then(() => {
     }
   }, 3000);
 
-  // 🔥 AUTO-REFRESH COOKIE every 5 minutes (prevents tracker auth failures)
+  // Cookie refresh every 5 min
   setInterval(async () => {
     const refreshed = await captureCookies();
     if (refreshed) {
       console.log('🔄 Cookie refreshed at', new Date().toLocaleTimeString());
-    } else {
-      console.log('⚠️ No cookie - user may need to re-login');
     }
-  }, 5 * 60 * 1000); // every 5 minutes
+  }, 5 * 60 * 1000);
 
-  // Fallback — start anyway after 30s
+  // Fallback - start anyway after 30s
   setTimeout(() => {
     if (!trackerStarted) {
       trackerStarted = true;
       clearInterval(tryStartTracker);
       console.log('⚠️ Starting tracker without cookie (fallback)');
-      console.log('⚠️ Starting tracker without cookie (fallback)');
       startTracking(BASE_URL, mainWindow, app, powerMonitor);
     }
   }, 30000);
 
-  powerMonitor.on('suspend', async () => {
-    await clockRequest('CLOCK_OUT', 'Auto - suspended');
+  // 🔒 NO AUTO CLOCK-OUT on suspend/shutdown - just log
+  powerMonitor.on('suspend', () => {
+    console.log('🔌 System suspended (no auto clock-out)');
   });
 
-
-
-  powerMonitor.on('shutdown', async () => {
-    await clockRequest('CLOCK_OUT', 'Auto - shutdown');
-    // Small pause so the HTTP request has time to finish before OS kills process
-    await new Promise(r => setTimeout(r, 1500));
+  powerMonitor.on('shutdown', () => {
+    console.log('⛔ System shutdown (no auto clock-out)');
   });
 
   powerMonitor.on('resume', async () => {
+    console.log('☀️ System resumed');
     setTimeout(async () => {
       if (isLoggedIn) {
         showClockInPopup();
@@ -312,6 +542,7 @@ app.whenReady().then(() => {
   });
 
   powerMonitor.on('unlock-screen', async () => {
+    console.log('🔓 Screen unlocked');
     setTimeout(async () => {
       if (isLoggedIn) {
         showClockInPopup();
@@ -319,15 +550,13 @@ app.whenReady().then(() => {
     }, 2000);
   });
 
-  // ── 4 hour work reminder ──
+  // 4 hour work reminder (no auto clock-out)
   let fourHourReminderShown = false;
-  let clockInTime = null;
 
   setInterval(async () => {
     if (!isLoggedIn || !currentCookie) return;
 
     try {
-      // Check current clock status
       const res = await new Promise((resolve) => {
         const req = https.request({
           hostname: 'portal.dartwebsite.com',
@@ -351,20 +580,7 @@ app.whenReady().then(() => {
       const isClockedIn = res.isClockedIn;
       const workingSeconds = res.workingSeconds || 0;
 
-      // Auto clock-out if clocked in but no activity for 1 hour
-      if (isClockedIn && workingSeconds > 3600) {
-        const lastActivity = res.currentSessionStart ? new Date(res.currentSessionStart) : null;
-        if (lastActivity) {
-          const idleMs = Date.now() - lastActivity.getTime();
-          // If session start was more than 10 hours ago with no clock-out = zombie session
-          if (idleMs > 10 * 60 * 60 * 1000) {
-            await clockRequest('CLOCK_OUT', 'Auto - zombie session');
-            console.log('Auto clock-out: zombie session');
-          }
-        }
-      }
-
-      // 4 hour reminder
+      // 4 hour reminder (notification only)
       if (isClockedIn && workingSeconds >= 4 * 3600 && !fourHourReminderShown) {
         fourHourReminderShown = true;
         if (Notification.isSupported()) {
@@ -376,21 +592,19 @@ app.whenReady().then(() => {
         }
       }
 
-      // Reset 4 hour reminder if clocked out
       if (!isClockedIn) {
         fourHourReminderShown = false;
       }
 
-      // Clock-in reminder - Mon to Fri, every 1 hour if not clocked in
+      // Clock-in reminder - Mon to Fri working hours
       const now = new Date();
-      const day = now.getDay(); // 0=Sun, 6=Sat
+      const day = now.getDay();
       const hour = now.getHours();
       const isWorkingDay = day >= 1 && day <= 5;
-      const isWorkingHours = hour >= 13 && hour <= 23;
+      const isWorkingHours = hour >= 9 && hour <= 18;
 
       if (!isClockedIn && isWorkingDay && isWorkingHours) {
         showClockInPopup();
-        console.log('Clock-in reminder shown');
       }
 
     } catch (e) {
@@ -400,16 +614,13 @@ app.whenReady().then(() => {
 });
 
 ipcMain.on('popup-clock-in', async () => {
-  console.log('Popup clock in clicked, cookie:', currentCookie ? 'YES' : 'NO');
   const status = await clockRequest('CLOCK_IN', 'Manual - popup');
-  console.log('Popup clock in status:', status);
   if (popupWindow && !popupWindow.isDestroyed()) {
     if (status === 200 || status === 400) {
       popupWindow.webContents.send('clock-success');
     } else {
       setTimeout(async () => {
-        const retry = await clockRequest('CLOCK_IN', 'Manual - popup retry');
-        console.log('Retry status:', retry);
+        await clockRequest('CLOCK_IN', 'Manual - popup retry');
         if (popupWindow && !popupWindow.isDestroyed()) {
           popupWindow.webContents.send('clock-success');
         }
@@ -423,25 +634,37 @@ ipcMain.on('popup-skip', () => {
     popupWindow.close();
   }
 });
-// Tracker notifications - Break warning
+
 ipcMain.on('show-notification', (_, msg) => {
   if (Notification.isSupported()) {
-    new Notification({ 
-      title: msg.title || 'Dart Command Center', 
+    new Notification({
+      title: msg.title || 'Dart Command Center',
       body: msg.message,
-      silent: false 
+      silent: false
     }).show();
   }
 });
 
-// Show clock-in prompt from tracker
 ipcMain.on('show-clock-in-prompt', () => {
   showClockInPopup();
 });
+
 app.on('window-all-closed', (e) => { e.preventDefault(); });
 
-app.on('before-quit', async () => {
-  await clockRequest('CLOCK_OUT', 'Auto - quit');
+// 🔒 NO auto clock-out on quit
+app.on('before-quit', () => {
+  console.log('App quitting - no auto clock-out');
 });
 
-ipcMain.on('stop-tracking', () => stopTracking());
+// Install update handler
+ipcMain.on('install-update-now', () => {
+  console.log('🚀 Installing update...');
+  autoUpdater.quitAndInstall();
+});
+
+// Close update window handler
+ipcMain.on('close-update-window', () => {
+  if (global.updateWindow && !global.updateWindow.isDestroyed()) {
+    global.updateWindow.close();
+  }
+});

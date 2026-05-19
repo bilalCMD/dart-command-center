@@ -1,8 +1,12 @@
 {
   "name": "dart-electron",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Dart Command Center Desktop App",
   "main": "main.js",
+  "author": {
+    "name": "Dart Marketing",
+    "email": "info@dartmarketing.io"
+  },
   "scripts": {
     "start": "electron .",
     "build:win": "electron-builder --win --x64"
@@ -13,12 +17,21 @@
     "directories": {
       "output": "dist"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "bilalCMD",
+        "repo": "dart-command-center"
+      }
+    ],
     "win": {
       "icon": "logo-new.png",
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "requestedExecutionLevel": "asInvoker"
@@ -72,5 +85,8 @@
     "url": "https://github.com/bilalCMD/dart-command-center"
   },
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "dependencies": {
+    "electron-updater": "^6.8.3"
+  }
 }
