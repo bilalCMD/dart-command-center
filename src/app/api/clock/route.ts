@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     
     if (type === 'CLOCK_IN') {
       // Already clocked in? Return success silently (no duplicate)
-      if (lastType === 'CLOCK_IN' || lastType === 'BREAK_END') {
+      if (lastType === 'CLOCK_IN' || lastType === 'BREAK_END' || lastType === 'AWAY_END') {
         return NextResponse.json({
           event: lastEvent,
           todaySummary: { workingSeconds: 0, breakSeconds: 0, totalSeconds: 0, isClockedIn: true, isOnBreak: false },
@@ -72,6 +72,14 @@ export async function POST(req: NextRequest) {
           event: lastEvent,
           todaySummary: { workingSeconds: 0, breakSeconds: 0, totalSeconds: 0, isClockedIn: true, isOnBreak: true },
           message: 'You are on break',
+        });
+      }
+      // On AWAY? Don't allow clock-in (user must end away first)
+      if (lastType === 'AWAY_START') {
+        return NextResponse.json({
+          event: lastEvent,
+          todaySummary: { workingSeconds: 0, breakSeconds: 0, totalSeconds: 0, isClockedIn: true, isOnBreak: false },
+          message: 'You are away - end away first',
         });
       }
     }

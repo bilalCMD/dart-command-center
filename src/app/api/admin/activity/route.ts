@@ -225,7 +225,10 @@ function calculateWorkingSeconds(events: any[]): number {
   for (const e of events) {
     const t = new Date(e.timestamp);
     if (e.type === 'CLOCK_IN') {
-      sessionStart = t;
+      // Ignore duplicate CLOCK_IN if already in session
+      if (!sessionStart) {
+        sessionStart = t;
+      }
     } else if (e.type === 'CLOCK_OUT' && sessionStart) {
       totalSeconds += Math.floor((t.getTime() - sessionStart.getTime()) / 1000);
       sessionStart = null;

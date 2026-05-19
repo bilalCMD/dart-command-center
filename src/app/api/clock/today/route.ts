@@ -34,7 +34,10 @@ export async function GET() {
       const t = new Date(e.timestamp);
       if (e.type === 'CLOCK_IN') {
         if (!firstClockIn) firstClockIn = t;
-        sessionStart = t;
+        // Ignore duplicate CLOCK_IN if already in session
+        if (!sessionStart) {
+          sessionStart = t;
+        }
       } else if (e.type === 'BREAK_START') {
         if (!breakStart) breakStart = t;
       } else if (e.type === 'BREAK_END' && breakStart) {
