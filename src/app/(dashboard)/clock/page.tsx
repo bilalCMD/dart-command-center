@@ -8,7 +8,7 @@ import {
   RefreshCw, Clock, Users, Activity,
   LogIn, LogOut, Timer, Calendar,
   Coffee, FileText, X, TrendingUp,
-  Zap, BarChart2, AlarmClock,
+  Zap, BarChart2, AlarmClock, MapPin,
 } from 'lucide-react';
 
 const fmtTime = (s: number) => {
@@ -30,6 +30,50 @@ const fmtShort = (s: number) => {
 const formatTime = (dateStr: string) =>
   new Date(dateStr).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
+function AwayModal({ onConfirm, onCancel }: { onConfirm: (reason: string) => void; onCancel: () => void }) {
+  const [selected, setSelected] = useState<string>('Prayer (Namaz)');
+  const reasons = [
+    { value: 'Prayer (Namaz)', icon: '🕌', label: 'Prayer (Namaz)' },
+    { value: 'Meeting', icon: '👥', label: 'Physical Meeting' },
+    { value: 'Other Device', icon: '💻', label: 'Working on Other Device' },
+    { value: 'Other', icon: '🚶', label: 'Other' },
+  ];
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative bg-white rounded-2xl shadow-2xl border border-[var(--border)] w-full max-w-sm overflow-hidden">
+        <div className="h-1.5 w-full" style={{ background: 'linear-gradient(90deg, #8b5cf6, #6366f1)' }} />
+        <div className="p-6">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg" style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)' }}>
+            <span className="text-2xl">🕌</span>
+          </div>
+          <h2 className="text-[18px] font-black text-[var(--text)] text-center mb-1">Going Away?</h2>
+          <p className="text-[12px] text-[var(--muted)] text-center mb-5">Idle time won't be counted while away</p>
+          <div className="space-y-2 mb-5">
+            {reasons.map(r => (
+              <button key={r.value} onClick={() => setSelected(r.value)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all text-left cursor-pointer ${selected === r.value ? 'border-purple-500 bg-purple-50' : 'border-[var(--border)] bg-white hover:border-purple-200'}`}>
+                <span className="text-2xl">{r.icon}</span>
+                <span className="text-[13px] font-bold text-[var(--text)]">{r.label}</span>
+                {selected === r.value && (
+                  <div className="ml-auto w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => onConfirm(selected)} className="w-full py-3.5 text-white font-bold text-sm rounded-xl mb-2.5 flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg" style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)' }}>
+            🕌 Confirm Away
+          </button>
+          <button onClick={onCancel} className="w-full py-2.5 bg-transparent text-[var(--muted)] text-sm font-semibold rounded-xl hover:text-[var(--text)] transition-all flex items-center justify-center gap-1.5">
+            <X size={13} /> Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 function HistoryChart({ days, filter }: { days: any[]; filter: string }) {
   const max = Math.max(...days.map(d => d.seconds), 1);
   const todayStr = new Date().toISOString().split('T')[0];
@@ -136,7 +180,7 @@ function EODPopup({ workedSeconds, onSubmitEOD, onSkip }: {
 }
 
 function DayDetailModal({ day, onClose }: { day: any; onClose: () => void }) {
-  const fmtS = (s: number) => { if (!s || s <= 0) return '0m'; const h = Math.floor(s/3600); const m = Math.floor((s%3600)/60); return h > 0 ? `${h}h ${m}m` : `${m}m`; };
+  const fmtS = (s: number) => { if (!s || s <= 0) return '0m'; const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m`; };
   const fmtT = (d: string) => new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   const dateLabel = new Date(day.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   const metTarget = day.seconds >= 8 * 3600;
@@ -225,7 +269,7 @@ function DayRow({ day }: { day: any }) {
   const [showModal, setShowModal] = useState(false);
   const todayStr = new Date().toISOString().split('T')[0];
   const isToday = day.date === todayStr;
-  const fmtS = (s: number) => { if (!s || s <= 0) return '0m'; const h = Math.floor(s/3600); const m = Math.floor((s%3600)/60); return h > 0 ? `${h}h ${m}m` : `${m}m`; };
+  const fmtS = (s: number) => { if (!s || s <= 0) return '0m'; const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m`; };
   const dateLabel = new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   const metTarget = day.seconds >= 8 * 3600;
   return (
@@ -251,7 +295,12 @@ function DayRow({ day }: { day: any }) {
   );
 }
 
-function StatusBadge({ isClockedIn, isOnBreak }: { isClockedIn: boolean; isOnBreak: boolean }) {
+function StatusBadge({ isClockedIn, isOnBreak, isAway }: { isClockedIn: boolean; isOnBreak: boolean; isAway?: boolean }) {
+  if (isAway) return (
+    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200">
+      <span>🕌</span> Away
+    </div>
+  );
   if (isOnBreak) return (
     <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
       <Coffee size={11} /> On Break
@@ -272,12 +321,14 @@ function StatusBadge({ isClockedIn, isOnBreak }: { isClockedIn: boolean; isOnBre
 function ActionButton({ onClick, loading, variant, icon, label, fullWidth }: any) {
   const variantClass = {
     primary: 'dart-gradient text-white hover:shadow-[0_8px_20px_rgba(237,103,28,0.35)]',
-    danger:  'bg-red-500 text-white hover:bg-red-600 hover:shadow-[0_8px_20px_rgba(239,68,68,0.3)]',
+    danger: 'bg-red-500 text-white hover:bg-red-600 hover:shadow-[0_8px_20px_rgba(239,68,68,0.3)]',
     success: 'bg-emerald-500 text-white hover:bg-emerald-600',
     warning: 'bg-amber-500 text-white hover:bg-amber-600',
-  }[variant as 'primary' | 'danger' | 'success' | 'warning'];
+    away: 'text-white hover:opacity-90',
+  }[variant as 'primary' | 'danger' | 'success' | 'warning' | 'away'];
+  const inlineStyle = variant === 'away' ? { background: 'linear-gradient(135deg, #8b5cf6, #6366f1)' } : {};
   return (
-    <button onClick={onClick} disabled={loading}
+    <button onClick={onClick} disabled={loading} style={inlineStyle}
       className={`${fullWidth ? 'w-full' : ''} inline-flex items-center justify-center gap-2 px-6 py-3 text-[13px] rounded-xl font-bold border-none cursor-pointer transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed tracking-wide uppercase ${variantClass}`}>
       {loading ? <><RefreshCw size={14} className="animate-spin" /><span>...</span></> : <>{icon}<span>{label}</span></>}
     </button>
@@ -286,16 +337,18 @@ function ActionButton({ onClick, loading, variant, icon, label, fullWidth }: any
 
 function getEventConfig(type: string) {
   switch (type) {
-    case 'CLOCK_IN':    return { label: 'Clock In',      iconSm: <Play size={9} strokeWidth={3} fill="currentColor" />,   iconLg: <LogIn size={13} strokeWidth={2.5} className="text-emerald-600" />,  badge: 'bg-green-50 text-emerald-700',  iconBg: 'bg-green-50' };
-    case 'CLOCK_OUT':   return { label: 'Clock Out',     iconSm: <Square size={9} strokeWidth={3} fill="currentColor" />, iconLg: <LogOut size={13} strokeWidth={2.5} className="text-red-500" />,     badge: 'bg-red-50 text-red-600',        iconBg: 'bg-red-50' };
-    case 'BREAK_START': return { label: 'Break Started', iconSm: <Coffee size={9} strokeWidth={2.5} />,                   iconLg: <Coffee size={13} strokeWidth={2.5} className="text-amber-600" />,    badge: 'bg-amber-50 text-amber-700',    iconBg: 'bg-amber-50' };
-    case 'BREAK_END':   return { label: 'Break Ended',   iconSm: <Play size={9} strokeWidth={3} fill="currentColor" />,   iconLg: <Play size={13} strokeWidth={2.5} fill="currentColor" className="text-amber-600" />, badge: 'bg-amber-50 text-amber-700', iconBg: 'bg-amber-50' };
-    default:            return { label: type,            iconSm: null,                                                     iconLg: null,                                                                  badge: 'bg-slate-50 text-[var(--muted)]', iconBg: 'bg-slate-50' };
+    case 'CLOCK_IN': return { label: 'Clock In', iconSm: <Play size={9} strokeWidth={3} fill="currentColor" />, iconLg: <LogIn size={13} strokeWidth={2.5} className="text-emerald-600" />, badge: 'bg-green-50 text-emerald-700', iconBg: 'bg-green-50' };
+    case 'CLOCK_OUT': return { label: 'Clock Out', iconSm: <Square size={9} strokeWidth={3} fill="currentColor" />, iconLg: <LogOut size={13} strokeWidth={2.5} className="text-red-500" />, badge: 'bg-red-50 text-red-600', iconBg: 'bg-red-50' };
+    case 'BREAK_START': return { label: 'Break Started', iconSm: <Coffee size={9} strokeWidth={2.5} />, iconLg: <Coffee size={13} strokeWidth={2.5} className="text-amber-600" />, badge: 'bg-amber-50 text-amber-700', iconBg: 'bg-amber-50' };
+    case 'BREAK_END': return { label: 'Break Ended', iconSm: <Play size={9} strokeWidth={3} fill="currentColor" />, iconLg: <Play size={13} strokeWidth={2.5} fill="currentColor" className="text-amber-600" />, badge: 'bg-amber-50 text-amber-700', iconBg: 'bg-amber-50' };
+    case 'AWAY_START': return { label: 'Away Started', iconSm: <span style={{ fontSize: '9px' }}>🕌</span>, iconLg: <span style={{ fontSize: '14px' }}>🕌</span>, badge: 'bg-purple-50 text-purple-700', iconBg: 'bg-purple-50' };
+    case 'AWAY_END': return { label: 'Away Ended', iconSm: <Play size={9} strokeWidth={3} fill="currentColor" />, iconLg: <Play size={13} strokeWidth={2.5} fill="currentColor" className="text-purple-600" />, badge: 'bg-purple-50 text-purple-700', iconBg: 'bg-purple-50' };
+    default: return { label: type, iconSm: null, iconLg: null, badge: 'bg-slate-50 text-[var(--muted)]', iconBg: 'bg-slate-50' };
   }
 }
 
 function UserRow({ member, active = false }: { member: any; active?: boolean }) {
-  const fmtS = (s: number) => { if (!s || s <= 0) return '0m'; const h = Math.floor(s/3600); const m = Math.floor((s%3600)/60); return h > 0 ? `${h}h ${m}m` : `${m}m`; };
+  const fmtS = (s: number) => { if (!s || s <= 0) return '0m'; const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m`; };
   const fmtT = (d: string) => new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   return (
     <div className="px-5 py-3.5 flex items-center gap-3 hover:bg-[var(--surface2)] transition-colors">
@@ -332,42 +385,44 @@ export default function ClockPage() {
   const user = session?.user as any;
   const isAdmin = user?.role === 'ADMIN';
 
-  const [isClockedIn, setIsClockedIn]     = useState(false);
-  const [isOnBreak, setIsOnBreak]         = useState(false);
-  const [elapsed, setElapsed]             = useState(0);
-  const [breakSeconds, setBreakSeconds]   = useState(0);
-  const [breakCount, setBreakCount]       = useState(0);
-  const [idleSeconds, setIdleSeconds]     = useState(0);
-  const [events, setEvents]               = useState<any[]>([]);
+  const [isClockedIn, setIsClockedIn] = useState(false);
+  const [isOnBreak, setIsOnBreak] = useState(false);
+  const [isAway, setIsAway] = useState(false);
+  const [showAwayModal, setShowAwayModal] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [breakSeconds, setBreakSeconds] = useState(0);
+  const [breakCount, setBreakCount] = useState(0);
+  const [idleSeconds, setIdleSeconds] = useState(0);
+  const [events, setEvents] = useState<any[]>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg]           = useState('');
-  const [sessionStart, setSessionStart]   = useState<Date | null>(null);
-  const [breakStart, setBreakStart]       = useState<Date | null>(null);
-  const [showEODPopup, setShowEODPopup]   = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [sessionStart, setSessionStart] = useState<Date | null>(null);
+  const [breakStart, setBreakStart] = useState<Date | null>(null);
+  const [showEODPopup, setShowEODPopup] = useState(false);
   const [workedOnClockOut, setWorkedOnClockOut] = useState(0);
-  const timerRef      = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const breakTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const [activeTab, setActiveTab]           = useState<'activity' | 'history'>('activity');
-  const [historyFilter, setHistoryFilter]   = useState<'day' | 'week' | 'month'>('week');
-  const [historyData, setHistoryData]       = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'activity' | 'history'>('activity');
+  const [historyFilter, setHistoryFilter] = useState<'day' | 'week' | 'month'>('week');
+  const [historyData, setHistoryData] = useState<any>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [teamData, setTeamData]             = useState<any[]>([]);
-  const [loading, setLoading]               = useState(true);
-  const [showInactive, setShowInactive]     = useState(false);
-  const [refreshing, setRefreshing]         = useState(false);
-  const [adminTab, setAdminTab]             = useState<'live' | 'log' | 'report'>('live');
+  const [teamData, setTeamData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showInactive, setShowInactive] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [adminTab, setAdminTab] = useState<'live' | 'log' | 'report'>('live');
 
   const today = new Date().toISOString().split('T')[0];
-  const [reportFrom, setReportFrom]     = useState(today);
-  const [reportTo, setReportTo]         = useState(today);
-  const [reportData, setReportData]     = useState<any>(null);
+  const [reportFrom, setReportFrom] = useState(today);
+  const [reportTo, setReportTo] = useState(today);
+  const [reportData, setReportData] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
 
   const fetchReport = async () => {
     setReportLoading(true);
     try {
-      const res  = await fetch(`/api/clock/report?from=${reportFrom}&to=${reportTo}`);
+      const res = await fetch(`/api/clock/report?from=${reportFrom}&to=${reportTo}`);
       const data = await res.json();
       setReportData(data);
     } catch (e) { console.error(e); }
@@ -376,10 +431,11 @@ export default function ClockPage() {
 
   const fetchEmployeeStatus = async () => {
     try {
-      const res  = await fetch('/api/clock/today');
+      const res = await fetch('/api/clock/today');
       const data = await res.json();
       setIsClockedIn(data.isClockedIn || false);
       setIsOnBreak(data.isOnBreak || false);
+      setIsAway(data.isAway || false);
       setElapsed(data.workingSeconds || data.totalSeconds || 0);
       setBreakSeconds(data.breakSeconds || 0);
       setBreakCount(data.breakCount || 0);
@@ -394,7 +450,7 @@ export default function ClockPage() {
   const fetchHistory = async (f: string) => {
     setHistoryLoading(true);
     try {
-      const res  = await fetch(`/api/clock/history?filter=${f}`);
+      const res = await fetch(`/api/clock/history?filter=${f}`);
       const data = await res.json();
       setHistoryData(data);
     } catch (e) { console.error(e); }
@@ -403,7 +459,7 @@ export default function ClockPage() {
 
   const fetchTeamData = async () => {
     try {
-      const res  = await fetch('/api/clock/team');
+      const res = await fetch('/api/clock/team');
       const data = await res.json();
       setTeamData(data.team || []);
     } catch (e) { console.error(e); }
@@ -443,11 +499,11 @@ export default function ClockPage() {
     }
   }, [isOnBreak, isAdmin]);
 
-  const handleAction = async (type: 'CLOCK_IN' | 'CLOCK_OUT' | 'BREAK_START' | 'BREAK_END') => {
+  const handleAction = async (type: 'CLOCK_IN' | 'CLOCK_OUT' | 'BREAK_START' | 'BREAK_END' | 'AWAY_END') => {
     setActionLoading(type);
     setErrorMsg('');
     try {
-      const res  = await fetch('/api/clock', {
+      const res = await fetch('/api/clock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type }),
@@ -461,9 +517,20 @@ export default function ClockPage() {
     finally { setActionLoading(null); }
   };
 
-  const handleFilterChange = (f: 'day' | 'week' | 'month') => {
-    setHistoryFilter(f);
-    fetchHistory(f);
+  const handleAwayConfirm = async (reason: string) => {
+    setShowAwayModal(false);
+    setActionLoading('AWAY_START');
+    try {
+      const res = await fetch('/api/clock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'AWAY_START', note: `Reason: ${reason}` }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErrorMsg(data.error || 'Action failed'); }
+      await fetchEmployeeStatus();
+    } catch (e) { setErrorMsg('Network error'); }
+    finally { setActionLoading(null); }
   };
 
   if (loading) {
@@ -478,7 +545,7 @@ export default function ClockPage() {
   }
 
   if (isAdmin) {
-    const activeMembers   = teamData.filter((m: any) => m.isClockedIn);
+    const activeMembers = teamData.filter((m: any) => m.isClockedIn);
     const inactiveMembers = teamData.filter((m: any) => !m.isClockedIn);
     const allEvents: any[] = [];
     teamData.forEach((member: any) => {
@@ -519,9 +586,9 @@ export default function ClockPage() {
 
         <div className="flex gap-1 bg-[var(--surface2)] border border-[var(--border)] rounded-xl p-1 mb-5 w-fit">
           {[
-            { key: 'live',   label: 'Live Status',  icon: <Activity size={13} /> },
-            { key: 'log',    label: 'Activity Log', icon: <FileText size={13} /> },
-            { key: 'report', label: 'Date Report',  icon: <Calendar size={13} /> },
+            { key: 'live', label: 'Live Status', icon: <Activity size={13} /> },
+            { key: 'log', label: 'Activity Log', icon: <FileText size={13} /> },
+            { key: 'report', label: 'Date Report', icon: <Calendar size={13} /> },
           ].map((t) => (
             <button key={t.key} onClick={() => setAdminTab(t.key as any)}
               className={`flex items-center gap-1.5 px-4 py-2 text-[12px] font-bold rounded-lg transition-all border-none cursor-pointer ${adminTab === t.key ? 'dart-gradient text-white shadow-soft' : 'bg-transparent text-[var(--muted)] hover:text-[var(--text)]'}`}>
@@ -697,11 +764,10 @@ export default function ClockPage() {
 
   return (
     <div className="animate-fade-in w-full">
-      {showEODPopup && (
-        <EODPopup
-          workedSeconds={workedOnClockOut}
-          onSubmitEOD={() => { setShowEODPopup(false); router.push('/eod'); }}
-          onSkip={() => setShowEODPopup(false)}
+      {showAwayModal && (
+        <AwayModal
+          onConfirm={handleAwayConfirm}
+          onCancel={() => setShowAwayModal(false)}
         />
       )}
 
@@ -712,7 +778,7 @@ export default function ClockPage() {
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <StatusBadge isClockedIn={isClockedIn} isOnBreak={isOnBreak} />
+        <StatusBadge isClockedIn={isClockedIn} isOnBreak={isOnBreak} isAway={isAway} />
       </div>
 
       <div className="grid grid-cols-12 gap-5">
@@ -799,14 +865,18 @@ export default function ClockPage() {
                 {!isClockedIn && (
                   <ActionButton onClick={() => handleAction('CLOCK_IN')} loading={actionLoading === 'CLOCK_IN'} variant="primary" icon={<Play size={14} strokeWidth={3} fill="currentColor" />} label="Clock In" fullWidth />
                 )}
-                {isClockedIn && !isOnBreak && (
+                {isClockedIn && !isOnBreak && !isAway && (
                   <>
                     <ActionButton onClick={() => handleAction('CLOCK_OUT')} loading={actionLoading === 'CLOCK_OUT'} variant="danger" icon={<Square size={14} strokeWidth={3} fill="currentColor" />} label="Clock Out" fullWidth />
                     <ActionButton onClick={() => handleAction('BREAK_START')} loading={actionLoading === 'BREAK_START'} variant="warning" icon={<Coffee size={14} strokeWidth={2.5} />} label="Start Break" fullWidth />
+                    <ActionButton onClick={() => setShowAwayModal(true)} loading={actionLoading === 'AWAY_START'} variant="away" icon={<span style={{ fontSize: '16px' }}>🕌</span>} label="Away (AFK)" fullWidth />
                   </>
                 )}
                 {isOnBreak && (
                   <ActionButton onClick={() => handleAction('BREAK_END')} loading={actionLoading === 'BREAK_END'} variant="success" icon={<Play size={14} strokeWidth={3} fill="currentColor" />} label="End Break" fullWidth />
+                )}
+                {isAway && (
+                  <ActionButton onClick={() => handleAction('AWAY_END')} loading={actionLoading === 'AWAY_END'} variant="success" icon={<Play size={14} strokeWidth={3} fill="currentColor" />} label="I'm Back - End Away" fullWidth />
                 )}
               </div>
             </div>
@@ -817,7 +887,7 @@ export default function ClockPage() {
           <div className="flex gap-1 bg-[var(--surface2)] border border-[var(--border)] rounded-xl p-1 mb-4 w-fit">
             {[
               { key: 'activity', label: "Today's Activity", icon: <Activity size={13} /> },
-              { key: 'history',  label: 'History',          icon: <BarChart2 size={13} /> },
+              { key: 'history', label: 'History', icon: <BarChart2 size={13} /> },
             ].map((t) => (
               <button key={t.key} onClick={() => { setActiveTab(t.key as any); if (t.key === 'history') fetchHistory(historyFilter); }}
                 className={`flex items-center gap-1.5 px-4 py-2 text-[12px] font-bold rounded-lg transition-all border-none cursor-pointer ${activeTab === t.key ? 'dart-gradient text-white shadow-soft' : 'bg-transparent text-[var(--muted)] hover:text-[var(--text)]'}`}>
@@ -888,8 +958,8 @@ export default function ClockPage() {
                     <div className="grid grid-cols-3 gap-3 mb-5">
                       {[
                         { label: 'Total Hours', value: fmtShort(historyData.totalSeconds), icon: <Clock size={14} className="text-[var(--orange)]" /> },
-                        { label: 'Avg / Day',   value: fmtShort(historyData.avgSeconds),   icon: <TrendingUp size={14} className="text-emerald-500" /> },
-                        { label: 'Days Worked', value: `${historyData.workedDays}d`,        icon: <Calendar size={14} className="text-blue-500" /> },
+                        { label: 'Avg / Day', value: fmtShort(historyData.avgSeconds), icon: <TrendingUp size={14} className="text-emerald-500" /> },
+                        { label: 'Days Worked', value: `${historyData.workedDays}d`, icon: <Calendar size={14} className="text-blue-500" /> },
                       ].map((s) => (
                         <div key={s.label} className="bg-[var(--surface2)] rounded-xl p-3 border border-[var(--border)]">
                           <div className="flex items-center gap-1.5 mb-1">{s.icon}<div className="text-[9px] text-[var(--muted)] font-semibold uppercase tracking-wider">{s.label}</div></div>

@@ -99,8 +99,17 @@ export async function GET(req: NextRequest) {
       const isCurrentlyActive =
         lastEvent?.type === 'CLOCK_IN' ||
         lastEvent?.type === 'BREAK_END' ||
-        lastEvent?.type === 'BREAK_START';
+        lastEvent?.type === 'BREAK_START' ||
+        lastEvent?.type === 'AWAY_START' ||
+        lastEvent?.type === 'AWAY_END';
       const isOnBreak = lastEvent?.type === 'BREAK_START';
+      const isAway = lastEvent?.type === 'AWAY_START';
+      
+      // Get away reason from note
+      const lastAwayEvent = [...userClockEvents].reverse().find(e => e.type === 'AWAY_START');
+      const awayReason = isAway && lastAwayEvent?.note ? 
+        lastAwayEvent.note.replace('Reason: ', '') : null;
+      
       const totalBreakSeconds = calculateBreakSeconds(userClockEvents);
 
       return {
@@ -112,6 +121,8 @@ export async function GET(req: NextRequest) {
         isTracking: userClockEvents.some(e => e.type === 'CLOCK_IN') && totalSeconds > 0,
         isOnline: isCurrentlyActive,
         isOnBreak,
+        isAway,
+        awayReason,
       };
     });
 
@@ -128,18 +139,21 @@ function calcIdleWithinSessions(idleLogs: any[], clockEvents: any[]): number {
     return Math.round(idleLogs.reduce((sum, log) => sum + (log.seconds || 0), 0));
   }
 
-  // Build active sessions (CLOCK_IN to CLOCK_OUT or until now if still open)
+  // 🔥 Build ACTIVE WORK sessions (excluding breaks)
+  // Working segment = from CLOCK_IN/BREAK_END to BREAK_START/CLOCK_OUT
   const sessions: { start: number; end: number }[] = [];
-  let sessStart: Date | null = null;
+  let workStart: Date | null = null;
+  
   for (const e of clockEvents) {
-    if (e.type === 'CLOCK_IN') {
-      sessStart = new Date(e.timestamp);
-    } else if (e.type === 'CLOCK_OUT' && sessStart) {
-      sessions.push({ start: sessStart.getTime(), end: new Date(e.timestamp).getTime() });
-      sessStart = null;
+    const t = new Date(e.timestamp);
+    if (e.type === 'CLOCK_IN' || e.type === 'BREAK_END') {
+      workStart = t;
+    } else if ((e.type === 'BREAK_START' || e.type === 'CLOCK_OUT') && workStart) {
+      sessions.push({ start: workStart.getTime(), end: t.getTime() });
+      workStart = null;
     }
   }
-  if (sessStart) sessions.push({ start: sessStart.getTime(), end: Date.now() });
+  if (workStart) sessions.push({ start: workStart.getTime(), end: Date.now() });
 
   // Sort and merge overlapping idle ranges
   const ranges = idleLogs

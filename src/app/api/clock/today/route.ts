@@ -110,13 +110,13 @@ export async function GET() {
       select: { idleFrom: true, idleTo: true, seconds: true },
     });
 
-    // Build break periods to exclude from idle
+    // Build break + AWAY periods to exclude from idle
     const breakPeriods: { start: number; end: number }[] = [];
     let breakP: Date | null = null;
     for (const e of events) {
-      if (e.type === 'BREAK_START') {
+      if (e.type === 'BREAK_START' || e.type === 'AWAY_START') {
         breakP = new Date(e.timestamp);
-      } else if (e.type === 'BREAK_END' && breakP) {
+      } else if ((e.type === 'BREAK_END' || e.type === 'AWAY_END') && breakP) {
         breakPeriods.push({ start: breakP.getTime(), end: new Date(e.timestamp).getTime() });
         breakP = null;
       }
@@ -144,9 +144,13 @@ export async function GET() {
       return sum + Math.max(0, overlap);
     }, 0));
 
+    // Check if currently away
+    const isAway = lastEvent?.type === 'AWAY_START';
+
     return NextResponse.json({
       isClockedIn,
       isOnBreak,
+      isAway,
       workingSeconds,
       breakSeconds,
       totalSeconds: workingSeconds,

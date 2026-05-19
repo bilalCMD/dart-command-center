@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/session';
 import { z } from 'zod';
 
 const clockSchema = z.object({
-  type: z.enum(['CLOCK_IN', 'CLOCK_OUT', 'BREAK_START', 'BREAK_END']),
+  type: z.enum(['CLOCK_IN', 'CLOCK_OUT', 'BREAK_START', 'BREAK_END', 'AWAY_START', 'AWAY_END']),
   note: z.string().optional(),
 });
 
@@ -49,10 +49,10 @@ export async function POST(req: NextRequest) {
     const since = await getShiftCutoff(user!.id);
 
     const lastEvent = await prisma.clockEvent.findFirst({
-      where: { userId: user!.id, timestamp: { gte: since }, type: { in: ['CLOCK_IN', 'CLOCK_OUT', 'BREAK_START', 'BREAK_END'] } },
+      where: { userId: user!.id, timestamp: { gte: since }, type: { in: ['CLOCK_IN', 'CLOCK_OUT', 'BREAK_START', 'BREAK_END', 'AWAY_START', 'AWAY_END'] } },
       orderBy: { timestamp: 'desc' },
     });
-    const lastType = lastEvent?.type || 'NONE';
+    const lastType = (lastEvent?.type || 'NONE') as string;
 
   // 🔒 STRICT MODE - No automatic event creation
     // Only allow valid state transitions
@@ -111,6 +111,34 @@ export async function POST(req: NextRequest) {
           event: null,
           todaySummary: { workingSeconds: 0, breakSeconds: 0, totalSeconds: 0, isClockedIn: lastType === 'CLOCK_IN' || lastType === 'BREAK_END', isOnBreak: false },
           message: 'No active break',
+        });
+      }
+    }
+    else if (type === 'AWAY_START') {
+      // Not clocked in? Reject silently
+      if (lastType === 'NONE' || lastType === 'CLOCK_OUT') {
+        return NextResponse.json({
+          event: null,
+          todaySummary: { workingSeconds: 0, breakSeconds: 0, totalSeconds: 0, isClockedIn: false, isOnBreak: false },
+          message: 'Not clocked in - please clock in first',
+        });
+      }
+      // Already away? Silent success
+      if (lastType === 'AWAY_START') {
+        return NextResponse.json({
+          event: lastEvent,
+          todaySummary: { workingSeconds: 0, breakSeconds: 0, totalSeconds: 0, isClockedIn: true, isOnBreak: false },
+          message: 'Already away',
+        });
+      }
+    }
+    else if (type === 'AWAY_END') {
+      // Not away? Silent success
+      if (lastType !== 'AWAY_START') {
+        return NextResponse.json({
+          event: null,
+          todaySummary: { workingSeconds: 0, breakSeconds: 0, totalSeconds: 0, isClockedIn: lastType === 'CLOCK_IN' || lastType === 'BREAK_END' || lastType === 'AWAY_END', isOnBreak: false },
+          message: 'Not away',
         });
       }
     }

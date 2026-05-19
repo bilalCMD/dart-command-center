@@ -85,6 +85,8 @@ enum ClockEventType {
   BREAK_END
   IDLE_START
   IDLE_END
+  AWAY_START
+  AWAY_END
 }
 
 // ═══════════════════════════════════════

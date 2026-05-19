@@ -39,7 +39,6 @@ export default function ActivityMonitorPage() {
     setLoading(true);
     const res = await fetch(`/api/admin/activity?date=${date}`);
     const data = await res.json();
-    // Sort: active members first
     const sorted = (data.members || []).sort((a: any, b: any) => {
       if (a.isOnline && !b.isOnline) return -1;
       if (!a.isOnline && b.isOnline) return 1;
@@ -78,7 +77,6 @@ export default function ActivityMonitorPage() {
 
   return (
     <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text)', margin: 0 }}>Activity Monitor</h1>
@@ -109,9 +107,7 @@ export default function ActivityMonitorPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '16px' }}>
-        {/* Members List */}
         <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--border)', overflow: 'hidden' }}>
-          {/* Active count header */}
           <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
               Team Members ({members.length})
@@ -127,19 +123,25 @@ export default function ActivityMonitorPage() {
             <div style={{ padding: '32px', textAlign: 'center', color: 'var(--muted)', fontSize: '13px' }}>Loading...</div>
           ) : (
             <div style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
-              {/* Active Members */}
               {activeMembers.length > 0 && (
                 <>
-                  <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'space-between' }}>
+                  <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'space-between', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
                       <span style={{ fontSize: '10px', fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Active Now</span>
                     </div>
-                    {activeMembers.filter(m => m.isOnBreak).length > 0 && (
-                      <span style={{ fontSize: '9px', fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '2px 6px', borderRadius: '99px' }}>
-                        ☕ {activeMembers.filter(m => m.isOnBreak).length} on break
-                      </span>
-                    )}
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      {activeMembers.filter((m: any) => m.isOnBreak).length > 0 && (
+                        <span style={{ fontSize: '9px', fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '2px 6px', borderRadius: '99px' }}>
+                          ☕ {activeMembers.filter((m: any) => m.isOnBreak).length} on break
+                        </span>
+                      )}
+                      {activeMembers.filter((m: any) => m.isAway).length > 0 && (
+                        <span style={{ fontSize: '9px', fontWeight: 700, color: '#8b5cf6', background: '#f3e8ff', padding: '2px 6px', borderRadius: '99px' }}>
+                          🕌 {activeMembers.filter((m: any) => m.isAway).length} away
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {activeMembers.map(m => (
                     <MemberRow key={m.id} m={m} selected={selected} onSelect={selectMember} active={m.isOnline} />
@@ -148,7 +150,6 @@ export default function ActivityMonitorPage() {
                 </>
               )}
 
-              {/* Inactive Members */}
               {inactiveMembers.length > 0 && (
                 <>
                   {activeMembers.length > 0 && (
@@ -165,7 +166,6 @@ export default function ActivityMonitorPage() {
           )}
         </div>
 
-        {/* Detail Panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {!selected ? (
             <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--border)', padding: '48px', textAlign: 'center' }}>
@@ -182,7 +182,6 @@ export default function ActivityMonitorPage() {
             </div>
           ) : detail ? (
             <>
-              {/* Member header */}
               <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--border)', padding: '16px 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: detail.clockIn ? '14px' : '0' }}>
                   <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #f97316, #fb923c)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 800, color: '#fff', flexShrink: 0 }}>
@@ -204,7 +203,12 @@ export default function ActivityMonitorPage() {
                       )}
                     </div>
                   </div>
-                  {selected.isOnBreak ? (
+                  {(selected as any).isAway ? (
+                    <span style={{ fontSize: '11px', fontWeight: 700, background: '#f3e8ff', color: '#8b5cf6', padding: '4px 10px', borderRadius: '99px', display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#8b5cf6' }} />
+                      🕌 Away {(selected as any).awayReason ? `· ${(selected as any).awayReason}` : ''}
+                    </span>
+                  ) : selected.isOnBreak ? (
                     <span style={{ fontSize: '11px', fontWeight: 700, background: '#fef3c7', color: '#d97706', padding: '4px 10px', borderRadius: '99px', display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
                       <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f59e0b' }} />
                       ☕ On Break
@@ -217,7 +221,6 @@ export default function ActivityMonitorPage() {
                   )}
                 </div>
 
-                {/* 8-hour progress bar */}
                 {detail.clockIn && (() => {
                   const pct = Math.min((detail.totalSeconds / (8 * 3600)) * 100, 100);
                   const hrs = (detail.totalSeconds / 3600).toFixed(1);
@@ -244,7 +247,6 @@ export default function ActivityMonitorPage() {
                 })()}
               </div>
 
-              {/* Summary Cards */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
                 {[
                   { label: 'Office Time',   value: fmtTime(detail.totalSeconds),      color: 'var(--orange)' },
@@ -260,7 +262,6 @@ export default function ActivityMonitorPage() {
                 ))}
               </div>
 
-              {/* Tabs */}
               <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--border)', overflow: 'hidden' }}>
                 <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
                   {[
@@ -347,7 +348,6 @@ export default function ActivityMonitorPage() {
                 )}
               </div>
 
-              {/* Idle Logs */}
               {detail.idleLogs?.length > 0 && (
                 <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--border)', overflow: 'hidden' }}>
                   <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)', background: '#fafafa' }}>
@@ -376,13 +376,15 @@ export default function ActivityMonitorPage() {
 function MemberRow({ m, selected, onSelect, active }: { m: any; selected: any; onSelect: (m: any) => void; active: boolean }) {
   const isSelected = selected?.id === m.id;
   const onBreak = m.isOnBreak;
+  const away = (m as any).isAway;
   
-  // Avatar background: working = orange, on break = yellow, inactive = gray
-  const avatarBg = onBreak 
-    ? 'linear-gradient(135deg, #f59e0b, #fbbf24)'
-    : active 
-      ? 'linear-gradient(135deg, #f97316, #fb923c)' 
-      : '#f1f5f9';
+  const avatarBg = away
+    ? 'linear-gradient(135deg, #8b5cf6, #6366f1)'
+    : onBreak 
+      ? 'linear-gradient(135deg, #f59e0b, #fbbf24)'
+      : active 
+        ? 'linear-gradient(135deg, #f97316, #fb923c)' 
+        : '#f1f5f9';
   
   return (
     <button
@@ -400,11 +402,19 @@ function MemberRow({ m, selected, onSelect, active }: { m: any; selected: any; o
         width: '34px', height: '34px', borderRadius: '10px', flexShrink: 0,
         background: avatarBg,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '12px', fontWeight: 800, color: active ? '#fff' : 'var(--muted)',
+        fontSize: '12px', fontWeight: 800, color: (active || away) ? '#fff' : 'var(--muted)',
         position: 'relative',
       }}>
         {m.avatar || m.name?.[0] || '?'}
-        {onBreak && (
+        {away && (
+          <span style={{
+            position: 'absolute', bottom: '-2px', right: '-2px',
+            fontSize: '11px', background: '#fff', borderRadius: '50%',
+            width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: '1.5px solid #8b5cf6',
+          }}>🕌</span>
+        )}
+        {onBreak && !away && (
           <span style={{
             position: 'absolute', bottom: '-2px', right: '-2px',
             fontSize: '11px', background: '#fff', borderRadius: '50%',
@@ -418,7 +428,12 @@ function MemberRow({ m, selected, onSelect, active }: { m: any; selected: any; o
         <div style={{ fontSize: '10px', color: 'var(--muted)' }}>{m.role}</div>
       </div>
       <div style={{ flexShrink: 0 }}>
-        {onBreak ? (
+        {away ? (
+          <span style={{ fontSize: '10px', fontWeight: 700, color: '#8b5cf6', display: 'flex', alignItems: 'center', gap: '4px', background: '#f3e8ff', padding: '3px 8px', borderRadius: '99px' }}>
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#8b5cf6', display: 'inline-block' }} />
+            🕌 Away
+          </span>
+        ) : onBreak ? (
           <span style={{ fontSize: '10px', fontWeight: 700, color: '#d97706', display: 'flex', alignItems: 'center', gap: '4px', background: '#fef3c7', padding: '3px 8px', borderRadius: '99px' }}>
             <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
             On Break

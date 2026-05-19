@@ -21,7 +21,8 @@
       {
         "provider": "github",
         "owner": "bilalCMD",
-        "repo": "dart-command-center"
+        "repo": "dart-command-center",
+        "releaseType": "release"
       }
     ],
     "win": {
