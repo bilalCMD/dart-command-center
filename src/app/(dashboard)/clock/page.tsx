@@ -516,7 +516,10 @@ export default function ClockPage() {
     } catch (e) { setErrorMsg('Network error. Try again.'); }
     finally { setActionLoading(null); }
   };
-
+  const handleFilterChange = (f: 'day' | 'week' | 'month') => {
+    setHistoryFilter(f);
+    fetchHistory(f);
+  };
   const handleAwayConfirm = async (reason: string) => {
     setShowAwayModal(false);
     setActionLoading('AWAY_START');
