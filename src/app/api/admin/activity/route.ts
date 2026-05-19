@@ -112,12 +112,14 @@ export async function GET(req: NextRequest) {
         String((lastAwayEvent as any).note).replace('Reason: ', '') : null;
 
       const totalBreakSeconds = calculateBreakSeconds(userClockEvents);
+      const totalAwaySeconds = calculateAwaySeconds(userClockEvents);
 
       return {
         ...m,
         totalSeconds,
         totalIdleSeconds,
         totalBreakSeconds,
+        totalAwaySeconds: calculateAwaySeconds(allClockEvents),
         topApp,
         isTracking: userClockEvents.some(e => e.type === 'CLOCK_IN') && totalSeconds > 0,
         isOnline: isCurrentlyActive,
@@ -242,6 +244,38 @@ function calculateBreakSeconds(events: any[]): number {
   }
   
   return totalBreak;
+}
+
+function calculateAwaySeconds(events: any[]): number {
+  let totalAway = 0;
+  let awayStart: Date | null = null;
+  let isClockedIn = false;
+  
+  for (const e of events) {
+    const t = new Date(e.timestamp);
+    if (e.type === 'CLOCK_IN') {
+      isClockedIn = true;
+    } else if (e.type === 'CLOCK_OUT') {
+      if (awayStart) {
+        totalAway += Math.floor((t.getTime() - awayStart.getTime()) / 1000);
+        awayStart = null;
+      }
+      isClockedIn = false;
+    } else if (e.type === 'AWAY_START') {
+      if (isClockedIn && !awayStart) {
+        awayStart = t;
+      }
+    } else if (e.type === 'AWAY_END' && awayStart) {
+      totalAway += Math.floor((t.getTime() - awayStart.getTime()) / 1000);
+      awayStart = null;
+    }
+  }
+  
+  if (awayStart && isClockedIn) {
+    totalAway += Math.floor((Date.now() - awayStart.getTime()) / 1000);
+  }
+  
+  return totalAway;
 }
 
 // Total office time = CLOCK_IN to CLOCK_OUT including breaks

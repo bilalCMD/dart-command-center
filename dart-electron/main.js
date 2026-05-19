@@ -11,7 +11,7 @@ let currentCookie = null;
 let isLoggedIn = false;
 const BASE_URL = 'https://portal.dartwebsite.com';
 
-// 🔒 Single Instance Lock - prevent multiple EXE instances
+// 🔒 Single Instance Lock
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   console.log('⚠️ Another instance is already running. Quitting.');
@@ -43,10 +43,7 @@ autoUpdater.on('update-available', (info) => {
 
 autoUpdater.on('update-downloaded', (info) => {
   console.log('✅ Update downloaded:', info.version);
-  
-  // Show big update button modal
   showUpdatePopup(info.version);
-  
   if (Notification.isSupported()) {
     new Notification({
       title: '✅ Update Ready!',
@@ -54,6 +51,10 @@ autoUpdater.on('update-downloaded', (info) => {
       silent: false,
     }).show();
   }
+});
+
+autoUpdater.on('error', (err) => {
+  console.error('Update error:', err.message);
 });
 
 // 🎨 Beautiful Update Popup
@@ -99,118 +100,48 @@ function showUpdatePopup(version) {
     font-size: 16px; z-index: 2;
     -webkit-app-region: no-drag;
   }
-  .header {
-    padding: 30px 24px 16px;
-    text-align: center;
-    color: white;
-  }
-  .icon {
-    font-size: 48px;
-    margin-bottom: 8px;
-    animation: bounce 2s infinite;
-  }
-  @keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-  }
-  .title {
-    font-size: 22px;
-    font-weight: 800;
-    margin-bottom: 6px;
-  }
-  .subtitle {
-    font-size: 13px;
-    opacity: 0.9;
-  }
-  .body {
-    background: white;
-    flex: 1;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-  }
-  .version-box {
-    background: linear-gradient(135deg, #f3e8ff, #e0e7ff);
-    padding: 14px;
-    border-radius: 12px;
-    text-align: center;
-    margin-bottom: 16px;
-  }
-  .version-label {
-    font-size: 10px;
-    color: #667eea;
-    font-weight: 700;
-    letter-spacing: 1px;
-  }
-  .version-num {
-    font-size: 24px;
-    font-weight: 900;
-    color: #4c1d95;
-    margin-top: 2px;
-  }
-  .features {
-    font-size: 12px;
-    color: #555;
-    margin-bottom: 16px;
-    line-height: 1.6;
-  }
+  .header { padding: 30px 24px 16px; text-align: center; color: white; }
+  .icon { font-size: 48px; margin-bottom: 8px; animation: bounce 2s infinite; }
+  @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  .title { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; opacity: 0.9; }
+  .body { background: white; flex: 1; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; }
+  .version-box { background: linear-gradient(135deg, #f3e8ff, #e0e7ff); padding: 14px; border-radius: 12px; text-align: center; margin-bottom: 16px; }
+  .version-label { font-size: 10px; color: #667eea; font-weight: 700; letter-spacing: 1px; }
+  .version-num { font-size: 24px; font-weight: 900; color: #4c1d95; margin-top: 2px; }
+  .features { font-size: 12px; color: #555; margin-bottom: 16px; line-height: 1.6; }
   .features .check { color: #22c55e; font-weight: 700; }
-  .btn {
-    width: 100%;
-    padding: 14px;
-    border: none;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    margin-bottom: 8px;
-    transition: all 0.2s;
-  }
-  .btn-install {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
-  }
+  .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; margin-bottom: 8px; transition: all 0.2s; }
+  .btn-install { background: linear-gradient(135deg, #667eea, #764ba2); color: white; box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4); }
   .btn-install:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5); }
-  .btn-later {
-    background: #f5f5f5;
-    color: #666;
-    font-size: 12px;
-    padding: 10px;
-  }
+  .btn-later { background: #f5f5f5; color: #666; font-size: 12px; padding: 10px; }
 </style>
 </head>
 <body>
 <div class="drag"></div>
 <button class="close-btn" onclick="closeWindow()">×</button>
-
 <div class="header">
   <div class="icon">🎉</div>
   <div class="title">Update Available!</div>
   <div class="subtitle">A new version of Dart Command Center is ready</div>
 </div>
-
 <div class="body">
   <div>
     <div class="version-box">
       <div class="version-label">NEW VERSION</div>
       <div class="version-num">v${version}</div>
     </div>
-    
     <div class="features">
+      <div><span class="check">✓</span> Auto clock-out when laptop closes</div>
       <div><span class="check">✓</span> Bug fixes & improvements</div>
-      <div><span class="check">✓</span> Better tracking accuracy</div>
       <div><span class="check">✓</span> Performance enhancements</div>
     </div>
   </div>
-  
   <div>
     <button class="btn btn-install" onclick="installNow()">⚡ Install & Restart Now</button>
     <button class="btn btn-later" onclick="closeWindow()">Remind me later</button>
   </div>
 </div>
-
 <script>
   const { ipcRenderer } = require('electron');
   function installNow() {
@@ -218,22 +149,14 @@ function showUpdatePopup(version) {
     document.querySelector('.btn-install').style.background = '#22c55e';
     ipcRenderer.send('install-update-now');
   }
-  function closeWindow() {
-    ipcRenderer.send('close-update-window');
-  }
+  function closeWindow() { ipcRenderer.send('close-update-window'); }
 </script>
 </body>
 </html>`;
 
   updateWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
-  
-  // Store reference to close it later
   global.updateWindow = updateWindow;
 }
-
-autoUpdater.on('error', (err) => {
-  console.error('Update error:', err.message);
-});
 
 async function captureCookies() {
   try {
@@ -288,6 +211,19 @@ function clockRequest(type, note) {
   });
 }
 
+// 🔥 AUTO CLOCK-OUT function
+async function autoClockOut(reason) {
+  try {
+    console.log(`🔌 Auto clock-out triggered: ${reason}`);
+    const status = await clockRequest('CLOCK_OUT', `Auto - ${reason}`);
+    console.log(`Auto clock-out result: ${status}`);
+    return status;
+  } catch (err) {
+    console.error('Auto clock-out error:', err);
+    return null;
+  }
+}
+
 function showClockInPopup() {
   if (popupWindow && !popupWindow.isDestroyed()) {
     popupWindow.focus();
@@ -323,41 +259,14 @@ function showClockInPopup() {
     overflow: hidden;
     user-select: none;
   }
-  .header {
-    background: linear-gradient(135deg, #ff6b35, #f7c59f);
-    padding: 20px;
-    text-align: center;
-    color: white;
-  }
+  .header { background: linear-gradient(135deg, #ff6b35, #f7c59f); padding: 20px; text-align: center; color: white; }
   .logo { font-size: 28px; margin-bottom: 4px; }
   .title { font-size: 16px; font-weight: 700; }
   .sub { font-size: 11px; opacity: 0.85; margin-top: 2px; }
   .body { padding: 20px; }
-  .time {
-    text-align: center;
-    font-size: 28px;
-    font-weight: 700;
-    color: #1a1a1a;
-    margin-bottom: 4px;
-    font-variant-numeric: tabular-nums;
-  }
-  .date {
-    text-align: center;
-    font-size: 12px;
-    color: #888;
-    margin-bottom: 16px;
-  }
-  .btn {
-    width: 100%;
-    padding: 12px;
-    border: none;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    margin-bottom: 8px;
-    transition: opacity 0.2s;
-  }
+  .time { text-align: center; font-size: 28px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+  .date { text-align: center; font-size: 12px; color: #888; margin-bottom: 16px; }
+  .btn { width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; margin-bottom: 8px; transition: opacity 0.2s; }
   .btn:hover { opacity: 0.85; }
   .btn-clock { background: linear-gradient(135deg, #ff6b35, #f7931e); color: white; }
   .btn-skip { background: #f5f5f5; color: #666; font-size: 12px; padding: 8px; }
@@ -461,7 +370,7 @@ function createTray() {
     { label: 'Clock Out', click: () => clockRequest('CLOCK_OUT', 'Manual - tray') },
     { type: 'separator' },
     { label: 'Check for Updates', click: () => autoUpdater.checkForUpdates() },
-    { label: 'Quit', click: () => { app.exit(0); } },
+    { label: 'Quit', click: () => { app.isQuitting = true; app.exit(0); } },
   ]);
   tray.setToolTip('Dart Command Center');
   tray.setContextMenu(menu);
@@ -523,15 +432,31 @@ app.whenReady().then(() => {
     }
   }, 30000);
 
-  // 🔒 NO AUTO CLOCK-OUT on suspend/shutdown - just log
-  powerMonitor.on('suspend', () => {
-    console.log('🔌 System suspended (no auto clock-out)');
+  // 🔥 AUTO CLOCK-OUT: Laptop shutdown
+  powerMonitor.on('shutdown', async (e) => {
+    console.log('⛔ System shutdown - AUTO CLOCK OUT');
+    if (isLoggedIn) {
+      await autoClockOut('laptop shutdown');
+    }
   });
 
-  powerMonitor.on('shutdown', () => {
-    console.log('⛔ System shutdown (no auto clock-out)');
+  // 🔥 AUTO CLOCK-OUT: Laptop close / sleep
+  powerMonitor.on('suspend', async () => {
+    console.log('💤 System suspended - AUTO CLOCK OUT');
+    if (isLoggedIn) {
+      await autoClockOut('laptop closed/sleep');
+    }
   });
 
+  // 🔥 AUTO CLOCK-OUT: Screen lock (Win+L)
+  powerMonitor.on('lock-screen', async () => {
+    console.log('🔒 Screen locked - AUTO CLOCK OUT');
+    if (isLoggedIn) {
+      await autoClockOut('screen locked');
+    }
+  });
+
+  // ☀️ System resumed - show clock in popup
   powerMonitor.on('resume', async () => {
     console.log('☀️ System resumed');
     setTimeout(async () => {
@@ -541,6 +466,7 @@ app.whenReady().then(() => {
     }, 3000);
   });
 
+  // 🔓 Screen unlocked - show clock in popup
   powerMonitor.on('unlock-screen', async () => {
     console.log('🔓 Screen unlocked');
     setTimeout(async () => {
@@ -550,12 +476,10 @@ app.whenReady().then(() => {
     }, 2000);
   });
 
-  // 4 hour work reminder (no auto clock-out)
+  // 4 hour work reminder (notification only)
   let fourHourReminderShown = false;
-
   setInterval(async () => {
     if (!isLoggedIn || !currentCookie) return;
-
     try {
       const res = await new Promise((resolve) => {
         const req = https.request({
@@ -576,11 +500,9 @@ app.whenReady().then(() => {
       });
 
       if (!res) return;
-
       const isClockedIn = res.isClockedIn;
       const workingSeconds = res.workingSeconds || 0;
 
-      // 4 hour reminder (notification only)
       if (isClockedIn && workingSeconds >= 4 * 3600 && !fourHourReminderShown) {
         fourHourReminderShown = true;
         if (Notification.isSupported()) {
@@ -596,7 +518,6 @@ app.whenReady().then(() => {
         fourHourReminderShown = false;
       }
 
-      // Clock-in reminder - Mon to Fri working hours
       const now = new Date();
       const day = now.getDay();
       const hour = now.getHours();
@@ -606,13 +527,26 @@ app.whenReady().then(() => {
       if (!isClockedIn && isWorkingDay && isWorkingHours) {
         showClockInPopup();
       }
-
     } catch (e) {
       console.error('Status check error:', e);
     }
-  }, 60 * 60 * 1000); // Every 1 hour
+  }, 60 * 60 * 1000);
 });
 
+// 🔥 AUTO CLOCK-OUT: App quit (user closes app from tray)
+app.on('before-quit', async (e) => {
+  if (!app.isQuitting && isLoggedIn) {
+    e.preventDefault();
+    app.isQuitting = true;
+    console.log('🚪 App quitting - AUTO CLOCK OUT');
+    await autoClockOut('app closed by user');
+    setTimeout(() => app.exit(0), 1000);
+  }
+});
+
+app.on('window-all-closed', (e) => { e.preventDefault(); });
+
+// IPC Handlers
 ipcMain.on('popup-clock-in', async () => {
   const status = await clockRequest('CLOCK_IN', 'Manual - popup');
   if (popupWindow && !popupWindow.isDestroyed()) {
@@ -647,13 +581,6 @@ ipcMain.on('show-notification', (_, msg) => {
 
 ipcMain.on('show-clock-in-prompt', () => {
   showClockInPopup();
-});
-
-app.on('window-all-closed', (e) => { e.preventDefault(); });
-
-// 🔒 NO auto clock-out on quit
-app.on('before-quit', () => {
-  console.log('App quitting - no auto clock-out');
 });
 
 // Install update handler
