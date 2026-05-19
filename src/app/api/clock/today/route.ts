@@ -13,7 +13,6 @@ export async function GET() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Fetch all today's events for this user
     const events = await prisma.clockEvent.findMany({
       where: {
         userId: user!.id,
@@ -22,29 +21,22 @@ export async function GET() {
       orderBy: { timestamp: 'asc' },
     });
 
-    // Working seconds = total office time (CLOCK_IN to CLOCK_OUT, breaks included)
-    // Break seconds = informational only, not subtracted from total
     let workingSeconds = 0;
     let breakSeconds = 0;
     let sessionStart: Date | null = null;
     let breakStart: Date | null = null;
     let firstClockIn: Date | null = null;
+    let isClockedInLocal = false;
 
-    for (const e of events) {
-      const t = new Date(e.timestamp);
-      let isClockedInLocal = false;
-    
     for (const e of events) {
       const t = new Date(e.timestamp);
       if (e.type === 'CLOCK_IN') {
         if (!firstClockIn) firstClockIn = t;
         isClockedInLocal = true;
-        // Ignore duplicate CLOCK_IN if already in session
         if (!sessionStart) {
           sessionStart = t;
         }
       } else if (e.type === 'BREAK_START') {
-        // Only start break if clocked in
         if (isClockedInLocal && !breakStart) breakStart = t;
       } else if (e.type === 'BREAK_END' && breakStart) {
         breakSeconds += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
@@ -58,6 +50,7 @@ export async function GET() {
           breakSeconds += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
           breakStart = null;
         }
+        isClockedInLocal = false;
       }
     }
 
@@ -67,7 +60,6 @@ export async function GET() {
       workingSeconds += Math.min(elapsed, 12 * 60 * 60);
     }
 
-    // Determine current state
     const lastEvent = events[events.length - 1];
     const isOnBreak = lastEvent?.type === 'BREAK_START';
     const isAway = lastEvent?.type === 'AWAY_START';
@@ -78,7 +70,6 @@ export async function GET() {
       isOnBreak ||
       isAway;
 
-    // Find current session start
     let currentSessionStart: Date | null = null;
     if (isClockedIn && !isOnBreak) {
       for (let i = events.length - 1; i >= 0; i--) {
@@ -89,7 +80,6 @@ export async function GET() {
       }
     }
 
-    // Find current break start
     let currentBreakStart: Date | null = null;
     if (isOnBreak) {
       currentBreakStart = new Date(lastEvent.timestamp);
@@ -97,7 +87,6 @@ export async function GET() {
 
     const breakCount = events.filter((e) => e.type === 'BREAK_START').length;
 
-    // Build active working sessions (exclude break time)
     const clockSessions: { start: number; end: number }[] = [];
     let sessStart: Date | null = null;
     for (const e of events) {
@@ -115,14 +104,12 @@ export async function GET() {
       clockSessions.push({ start: sessStart.getTime(), end: Date.now() });
     }
 
-    // Fetch today's idle logs
     const idleLogs = await prisma.idleLog.findMany({
       where: { userId: user!.id, idleFrom: { gte: today } },
       orderBy: { idleFrom: 'asc' },
       select: { idleFrom: true, idleTo: true, seconds: true },
     });
 
-    // Build break + AWAY periods to exclude from idle
     const breakPeriods: { start: number; end: number }[] = [];
     let breakP: Date | null = null;
     for (const e of events) {
@@ -135,7 +122,6 @@ export async function GET() {
     }
     if (breakP) breakPeriods.push({ start: breakP.getTime(), end: Date.now() });
 
-    // Only count idle seconds that fall inside a clocked-in session but NOT in a break
     const idleSeconds = Math.round(idleLogs.reduce((sum, log) => {
       const from = new Date(log.idleFrom).getTime();
       const to = new Date(log.idleTo).getTime();
@@ -155,8 +141,6 @@ export async function GET() {
       }
       return sum + Math.max(0, overlap);
     }, 0));
-
-
 
     return NextResponse.json({
       isClockedIn,
