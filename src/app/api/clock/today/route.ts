@@ -64,10 +64,13 @@ export async function GET() {
     // Determine current state
     const lastEvent = events[events.length - 1];
     const isOnBreak = lastEvent?.type === 'BREAK_START';
+    const isAway = lastEvent?.type === 'AWAY_START';
     const isClockedIn =
       lastEvent?.type === 'CLOCK_IN' ||
       lastEvent?.type === 'BREAK_END' ||
-      isOnBreak;
+      lastEvent?.type === 'AWAY_END' ||
+      isOnBreak ||
+      isAway;
 
     // Find current session start
     let currentSessionStart: Date | null = null;
@@ -147,8 +150,7 @@ export async function GET() {
       return sum + Math.max(0, overlap);
     }, 0));
 
-    // Check if currently away
-    const isAway = lastEvent?.type === 'AWAY_START';
+
 
     return NextResponse.json({
       isClockedIn,
