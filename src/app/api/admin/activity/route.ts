@@ -198,21 +198,32 @@ function calcIdleWithinSessions(idleLogs: any[], clockEvents: any[]): number {
 function calculateBreakSeconds(events: any[]): number {
   let totalBreak = 0;
   let breakStart: Date | null = null;
+  let isClockedIn = false;
+  
   for (const e of events) {
     const t = new Date(e.timestamp);
-    if (e.type === 'BREAK_START') {
-      breakStart = t;
+    if (e.type === 'CLOCK_IN') {
+      isClockedIn = true;
+    } else if (e.type === 'CLOCK_OUT') {
+      if (breakStart) {
+        totalBreak += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
+        breakStart = null;
+      }
+      isClockedIn = false;
+    } else if (e.type === 'BREAK_START') {
+      if (isClockedIn && !breakStart) {
+        breakStart = t;
+      }
     } else if (e.type === 'BREAK_END' && breakStart) {
-      totalBreak += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
-      breakStart = null;
-    } else if (e.type === 'CLOCK_OUT' && breakStart) {
       totalBreak += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
       breakStart = null;
     }
   }
-  if (breakStart) {
+  
+  if (breakStart && isClockedIn) {
     totalBreak += Math.floor((Date.now() - breakStart.getTime()) / 1000);
   }
+  
   return totalBreak;
 }
 

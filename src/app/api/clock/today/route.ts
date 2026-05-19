@@ -32,14 +32,20 @@ export async function GET() {
 
     for (const e of events) {
       const t = new Date(e.timestamp);
+      let isClockedInLocal = false;
+    
+    for (const e of events) {
+      const t = new Date(e.timestamp);
       if (e.type === 'CLOCK_IN') {
         if (!firstClockIn) firstClockIn = t;
+        isClockedInLocal = true;
         // Ignore duplicate CLOCK_IN if already in session
         if (!sessionStart) {
           sessionStart = t;
         }
       } else if (e.type === 'BREAK_START') {
-        if (!breakStart) breakStart = t;
+        // Only start break if clocked in
+        if (isClockedInLocal && !breakStart) breakStart = t;
       } else if (e.type === 'BREAK_END' && breakStart) {
         breakSeconds += Math.floor((t.getTime() - breakStart.getTime()) / 1000);
         breakStart = null;
