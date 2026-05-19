@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
       }),
       prisma.clockEvent.findMany({
         where: { timestamp: { gte: dateKey, lt: nextDay } },
-        select: { userId: true, type: true, timestamp: true },
+        select: { userId: true, type: true, timestamp: true, note: true },
         orderBy: { timestamp: 'asc' },
       }),
     ]);
@@ -96,20 +96,21 @@ export async function GET(req: NextRequest) {
 
       // Use last event to determine current status
       const lastEvent = userClockEvents[userClockEvents.length - 1];
+      const lastType: string = (lastEvent?.type as string) || 'NONE';
       const isCurrentlyActive =
-        lastEvent?.type === 'CLOCK_IN' ||
-        lastEvent?.type === 'BREAK_END' ||
-        lastEvent?.type === 'BREAK_START' ||
-        lastEvent?.type === 'AWAY_START' ||
-        lastEvent?.type === 'AWAY_END';
-      const isOnBreak = lastEvent?.type === 'BREAK_START';
-      const isAway = lastEvent?.type === 'AWAY_START';
-      
+        lastType === 'CLOCK_IN' ||
+        lastType === 'BREAK_END' ||
+        lastType === 'BREAK_START' ||
+        lastType === 'AWAY_START' ||
+        lastType === 'AWAY_END';
+      const isOnBreak = lastType === 'BREAK_START';
+      const isAway = lastType === 'AWAY_START';
+
       // Get away reason from note
-      const lastAwayEvent = [...userClockEvents].reverse().find(e => e.type === 'AWAY_START');
-      const awayReason = isAway && lastAwayEvent?.note ? 
-        lastAwayEvent.note.replace('Reason: ', '') : null;
-      
+      const lastAwayEvent = [...userClockEvents].reverse().find((e: any) => e.type === 'AWAY_START');
+      const awayReason = isAway && lastAwayEvent && (lastAwayEvent as any).note ?
+        String((lastAwayEvent as any).note).replace('Reason: ', '') : null;
+
       const totalBreakSeconds = calculateBreakSeconds(userClockEvents);
 
       return {
@@ -143,7 +144,7 @@ function calcIdleWithinSessions(idleLogs: any[], clockEvents: any[]): number {
   // Working segment = from CLOCK_IN/BREAK_END to BREAK_START/CLOCK_OUT
   const sessions: { start: number; end: number }[] = [];
   let workStart: Date | null = null;
-  
+
   for (const e of clockEvents) {
     const t = new Date(e.timestamp);
     if (e.type === 'CLOCK_IN' || e.type === 'BREAK_END') {
