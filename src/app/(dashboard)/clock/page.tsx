@@ -31,11 +31,11 @@ const formatTime = (dateStr: string) =>
   new Date(dateStr).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
 function AwayModal({ onConfirm, onCancel }: { onConfirm: (reason: string) => void; onCancel: () => void }) {
-  const [selected, setSelected] = useState<string>('Prayer (Namaz)');
+  const [selected, setSelected] = useState<string>('Meeting');
   const reasons = [
-    { value: 'Prayer (Namaz)', icon: '🕌', label: 'Prayer (Namaz)' },
     { value: 'Meeting', icon: '👥', label: 'Physical Meeting' },
     { value: 'Other Device', icon: '💻', label: 'Working on Other Device' },
+    { value: 'Washroom', icon: '🚿', label: 'Washroom Break' },
     { value: 'Other', icon: '🚶', label: 'Other' },
   ];
   return (

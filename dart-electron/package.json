@@ -1,6 +1,6 @@
 {
   "name": "dart-electron",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Dart Command Center Desktop App",
   "main": "main.js",
   "author": {
