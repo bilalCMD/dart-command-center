@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
         totalSeconds,
         totalIdleSeconds,
         totalBreakSeconds,
-        totalAwaySeconds: calculateAwaySeconds(allClockEvents),
+        totalAwaySeconds: calculateAwaySeconds(userClockEvents),
         topApp,
         isTracking: userClockEvents.some(e => e.type === 'CLOCK_IN') && totalSeconds > 0,
         isOnline: isCurrentlyActive,
@@ -218,7 +218,7 @@ function calculateBreakSeconds(events: any[]): number {
   let totalBreak = 0;
   let breakStart: Date | null = null;
   let isClockedIn = false;
-  
+
   for (const e of events) {
     const t = new Date(e.timestamp);
     if (e.type === 'CLOCK_IN') {
@@ -238,11 +238,11 @@ function calculateBreakSeconds(events: any[]): number {
       breakStart = null;
     }
   }
-  
+
   if (breakStart && isClockedIn) {
     totalBreak += Math.floor((Date.now() - breakStart.getTime()) / 1000);
   }
-  
+
   return totalBreak;
 }
 
@@ -250,7 +250,7 @@ function calculateAwaySeconds(events: any[]): number {
   let totalAway = 0;
   let awayStart: Date | null = null;
   let isClockedIn = false;
-  
+
   for (const e of events) {
     const t = new Date(e.timestamp);
     if (e.type === 'CLOCK_IN') {
@@ -262,19 +262,18 @@ function calculateAwaySeconds(events: any[]): number {
       }
       isClockedIn = false;
     } else if (e.type === 'AWAY_START') {
-      if (isClockedIn && !awayStart) {
-        awayStart = t;
-      }
+      if (!awayStart) awayStart = t;
     } else if (e.type === 'AWAY_END' && awayStart) {
       totalAway += Math.floor((t.getTime() - awayStart.getTime()) / 1000);
       awayStart = null;
     }
   }
-  
-  if (awayStart && isClockedIn) {
+
+  // 🔥 If still away right now (AWAY_START but no AWAY_END yet), count ongoing time
+  if (awayStart) {
     totalAway += Math.floor((Date.now() - awayStart.getTime()) / 1000);
   }
-  
+
   return totalAway;
 }
 
