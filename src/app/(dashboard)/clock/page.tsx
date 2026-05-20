@@ -45,7 +45,7 @@ function AwayModal({ onConfirm, onCancel }: { onConfirm: (reason: string) => voi
         <div className="h-1.5 w-full" style={{ background: 'linear-gradient(90deg, #8b5cf6, #6366f1)' }} />
         <div className="p-6">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg" style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)' }}>
-            <span className="text-2xl">🕌</span>
+            <span className="text-2xl">🚶</span>
           </div>
           <h2 className="text-[18px] font-black text-[var(--text)] text-center mb-1">Going Away?</h2>
           <p className="text-[12px] text-[var(--muted)] text-center mb-5">Idle time won't be counted while away</p>
@@ -64,7 +64,7 @@ function AwayModal({ onConfirm, onCancel }: { onConfirm: (reason: string) => voi
             ))}
           </div>
           <button onClick={() => onConfirm(selected)} className="w-full py-3.5 text-white font-bold text-sm rounded-xl mb-2.5 flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg" style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)' }}>
-            🕌 Confirm Away
+            🚶 Confirm Away
           </button>
           <button onClick={onCancel} className="w-full py-2.5 bg-transparent text-[var(--muted)] text-sm font-semibold rounded-xl hover:text-[var(--text)] transition-all flex items-center justify-center gap-1.5">
             <X size={13} /> Cancel
@@ -298,7 +298,7 @@ function DayRow({ day }: { day: any }) {
 function StatusBadge({ isClockedIn, isOnBreak, isAway }: { isClockedIn: boolean; isOnBreak: boolean; isAway?: boolean }) {
   if (isAway) return (
     <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200">
-      <span>🕌</span> Away
+      <span>🚶</span> Away
     </div>
   );
   if (isOnBreak) return (
@@ -341,7 +341,7 @@ function getEventConfig(type: string) {
     case 'CLOCK_OUT': return { label: 'Clock Out', iconSm: <Square size={9} strokeWidth={3} fill="currentColor" />, iconLg: <LogOut size={13} strokeWidth={2.5} className="text-red-500" />, badge: 'bg-red-50 text-red-600', iconBg: 'bg-red-50' };
     case 'BREAK_START': return { label: 'Break Started', iconSm: <Coffee size={9} strokeWidth={2.5} />, iconLg: <Coffee size={13} strokeWidth={2.5} className="text-amber-600" />, badge: 'bg-amber-50 text-amber-700', iconBg: 'bg-amber-50' };
     case 'BREAK_END': return { label: 'Break Ended', iconSm: <Play size={9} strokeWidth={3} fill="currentColor" />, iconLg: <Play size={13} strokeWidth={2.5} fill="currentColor" className="text-amber-600" />, badge: 'bg-amber-50 text-amber-700', iconBg: 'bg-amber-50' };
-    case 'AWAY_START': return { label: 'Away Started', iconSm: <span style={{ fontSize: '9px' }}>🕌</span>, iconLg: <span style={{ fontSize: '14px' }}>🕌</span>, badge: 'bg-purple-50 text-purple-700', iconBg: 'bg-purple-50' };
+    case 'AWAY_START': return { label: 'Away Started', iconSm: <span style={{ fontSize: '9px' }}>🚶</span>, iconLg: <span style={{ fontSize: '14px' }}>🚶</span>, badge: 'bg-purple-50 text-purple-700', iconBg: 'bg-purple-50' };
     case 'AWAY_END': return { label: 'Away Ended', iconSm: <Play size={9} strokeWidth={3} fill="currentColor" />, iconLg: <Play size={13} strokeWidth={2.5} fill="currentColor" className="text-purple-600" />, badge: 'bg-purple-50 text-purple-700', iconBg: 'bg-purple-50' };
     default: return { label: type, iconSm: null, iconLg: null, badge: 'bg-slate-50 text-[var(--muted)]', iconBg: 'bg-slate-50' };
   }
@@ -872,7 +872,7 @@ export default function ClockPage() {
                   <>
                     <ActionButton onClick={() => handleAction('CLOCK_OUT')} loading={actionLoading === 'CLOCK_OUT'} variant="danger" icon={<Square size={14} strokeWidth={3} fill="currentColor" />} label="Clock Out" fullWidth />
                     <ActionButton onClick={() => handleAction('BREAK_START')} loading={actionLoading === 'BREAK_START'} variant="warning" icon={<Coffee size={14} strokeWidth={2.5} />} label="Start Break" fullWidth />
-                    <ActionButton onClick={() => setShowAwayModal(true)} loading={actionLoading === 'AWAY_START'} variant="away" icon={<span style={{ fontSize: '16px' }}>🕌</span>} label="Away (AFK)" fullWidth />
+                    <ActionButton onClick={() => setShowAwayModal(true)} loading={actionLoading === 'AWAY_START'} variant="away" icon={<span style={{ fontSize: '16px' }}>🚶</span>} label="Away (AFK)" fullWidth />
                   </>
                 )}
                 {isOnBreak && (

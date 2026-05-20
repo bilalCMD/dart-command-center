@@ -798,19 +798,12 @@ export default function EODPage() {
             <TaskInput tasks={tasks} onTasksChange={setTasks} />
           </div>
 
-          {/* Step 2 — KPI */}
-          <div className="px-6 py-5 border-b border-[var(--border-subtle)]">
-            <div className="flex items-center gap-2.5 mb-3">
-              <div className="w-6 h-6 rounded-full dart-gradient flex items-center justify-center text-white text-[10px] font-black shrink-0">2</div>
-              <span className="text-[13px] font-bold text-[var(--text)]">Primary KPI focus</span>
-            </div>
-            <KpiDropdown value={kpiFocus} onChange={setKpiFocus} />
-          </div>
+
 
           {/* Step 3 — Blockers + Tomorrow */}
           <div className="px-6 py-5 border-b border-[var(--border-subtle)]">
             <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-6 h-6 rounded-full dart-gradient flex items-center justify-center text-white text-[10px] font-black shrink-0">3</div>
+              <div className="w-6 h-6 rounded-full dart-gradient flex items-center justify-center text-white text-[10px] font-black shrink-0">2</div>
               <span className="text-[13px] font-bold text-[var(--text)]">Anything else to note?</span>
               <span className="text-[10px] text-[var(--muted)]">optional</span>
             </div>
