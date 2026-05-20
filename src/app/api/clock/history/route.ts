@@ -66,7 +66,7 @@ export async function GET(req: Request) {
 
     // Process ALL events. Session = CLOCK_IN to next CLOCK_OUT.
     // Handles night shifts (session on clock-in day) + caps runaway sessions.
-    const MAX_SESSION_SECONDS = 16 * 3600; // max 16h per session (safety cap)
+    const MAX_SESSION_SECONDS = 12 * 3600; // max 12h per session (safety cap)
     let activeSince: Date | null = null;
 
     const addSession = (start: Date, end: Date | null) => {
@@ -88,9 +88,15 @@ export async function GET(req: Request) {
 
     for (const e of events) {
       if (e.type === 'CLOCK_IN') {
-        // If already clocked in without a clock-out (forgot), close old session first
+        // If already clocked in without clock-out (forgot), close old session
+        // But cap it - don't count the full gap (they likely left, forgot to clock out)
         if (activeSince) {
-          addSession(activeSince, new Date(e.timestamp));
+          const gap = new Date(e.timestamp).getTime() - activeSince.getTime();
+          // If gap > 12h, they forgot to clock out - cap at MAX
+          const closeTime = gap > MAX_SESSION_SECONDS * 1000
+            ? new Date(activeSince.getTime() + MAX_SESSION_SECONDS * 1000)
+            : new Date(e.timestamp);
+          addSession(activeSince, closeTime);
         }
         activeSince = new Date(e.timestamp);
       } else if (e.type === 'CLOCK_OUT' && activeSince) {

@@ -13,6 +13,7 @@ let lastActiveTime = Date.now();
 let isIdle = false;
 let idleStart = null;
 let breakWarningShown = false;
+let stillWorkingAsked = false;
 let sessionCookie = null;
 let mainWindow = null;
 let backendUrl = null;
@@ -191,9 +192,8 @@ function notifyApp(message) {
   }
 }
 
-function checkMouseAndIdle() {
-  const pos = getMousePosition();
-  const now = Date.now();
+// 🔒 If user is on break, don't track idle (break ≠ idle)
+  // We'll check this via /api/clock/today endpoint periodically
   if (pos) {
     if (pos.x !== lastMouseX || pos.y !== lastMouseY) {
       lastMouseX = pos.x;
@@ -216,6 +216,17 @@ function checkMouseAndIdle() {
     console.log('💤 IDLE at', idleStart.toLocaleTimeString());
   }
 
+  // 🔔 "Are you still working?" - after 30 min idle, ask user
+  const STILL_WORKING_THRESHOLD = 30 * 60 * 1000; // 30 min
+  if (idleTime >= STILL_WORKING_THRESHOLD && !stillWorkingAsked) {
+    stillWorkingAsked = true;
+    notifyApp({ type: 'still_working_check' });
+    console.log('🔔 Asking: Are you still working?');
+  }
+  if (idleTime < IDLE_THRESHOLD) {
+    stillWorkingAsked = false;
+  }
+
   // 🔔 Only notification - NO auto-actions
   if (idleTime >= BREAK_WARNING_THRESHOLD && !breakWarningShown) {
     breakWarningShown = true;
@@ -231,10 +242,16 @@ function checkMouseAndIdle() {
     breakWarningShown = false;
     const idleTo = new Date();
     const seconds = Math.round((idleTo - idleStart) / 1000);
-    if (seconds > 30) {
-      idleBuffer.push({ idleFrom: idleStart.toISOString(), idleTo: idleTo.toISOString(), seconds });
+    // 🔒 Only log if reasonable duration and not already logged
+    if (seconds > 30 && seconds < 4 * 60 * 60) { // max 4 hours per single log
+      idleBuffer.push({ 
+        idleFrom: idleStart.toISOString(), 
+        idleTo: idleTo.toISOString(), 
+        seconds 
+      });
     }
     idleStart = null;
+    lastActiveTime = Date.now(); // Reset to prevent re-trigger
   }
 }
 

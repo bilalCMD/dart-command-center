@@ -487,77 +487,77 @@ app.whenReady().then(() => {
   // ☀️ System resumed - show clock in popup
   powerMonitor.on('resume', async () => {
     console.log('☀️ System resumed');
-      if (isLoggedIn) {
-        showClockInPopup();
-      }
-    }, 3000);
-  });
-
-  // 🔓 Screen unlocked - show clock in popup
-  powerMonitor.on('unlock-screen', async () => {
-    console.log('🔓 Screen unlocked');
-    setTimeout(async () => {
-      if (isLoggedIn) {
-        showClockInPopup();
-      }
-    }, 2000);
-  });
-
-  // 4 hour work reminder (notification only)
-  let fourHourReminderShown = false;
-  setInterval(async () => {
-    if (!isLoggedIn || !currentCookie) return;
-    try {
-      const res = await new Promise((resolve) => {
-        const req = https.request({
-          hostname: 'portal.dartwebsite.com',
-          port: 443,
-          path: '/api/clock/today',
-          method: 'GET',
-          headers: { 'Cookie': currentCookie },
-        }, (res) => {
-          let data = '';
-          res.on('data', d => data += d);
-          res.on('end', () => {
-            try { resolve(JSON.parse(data)); } catch { resolve(null); }
-          });
-        });
-        req.on('error', () => resolve(null));
-        req.end();
-      });
-
-      if (!res) return;
-      const isClockedIn = res.isClockedIn;
-      const workingSeconds = res.workingSeconds || 0;
-
-      if (isClockedIn && workingSeconds >= 4 * 3600 && !fourHourReminderShown) {
-        fourHourReminderShown = true;
-        if (Notification.isSupported()) {
-          new Notification({
-            title: '💪 Great work!',
-            body: `You've been working for 4 hours! Take a short break if needed.`,
-            silent: false,
-          }).show();
-        }
-      }
-
-      if (!isClockedIn) {
-        fourHourReminderShown = false;
-      }
-
-      const now = new Date();
-      const day = now.getDay();
-      const hour = now.getHours();
-      const isWorkingDay = day >= 1 && day <= 5;
-      const isWorkingHours = hour >= 9 && hour <= 18;
-
-      if (!isClockedIn && isWorkingDay && isWorkingHours) {
-        showClockInPopup();
-      }
-    } catch (e) {
-      console.error('Status check error:', e);
+    if (isLoggedIn) {
+      showClockInPopup();
     }
-  }, 60 * 60 * 1000);
+  }, 3000);
+});
+
+// 🔓 Screen unlocked - show clock in popup
+powerMonitor.on('unlock-screen', async () => {
+  console.log('🔓 Screen unlocked');
+  setTimeout(async () => {
+    if (isLoggedIn) {
+      showClockInPopup();
+    }
+  }, 2000);
+});
+
+// 4 hour work reminder (notification only)
+let fourHourReminderShown = false;
+setInterval(async () => {
+  if (!isLoggedIn || !currentCookie) return;
+  try {
+    const res = await new Promise((resolve) => {
+      const req = https.request({
+        hostname: 'portal.dartwebsite.com',
+        port: 443,
+        path: '/api/clock/today',
+        method: 'GET',
+        headers: { 'Cookie': currentCookie },
+      }, (res) => {
+        let data = '';
+        res.on('data', d => data += d);
+        res.on('end', () => {
+          try { resolve(JSON.parse(data)); } catch { resolve(null); }
+        });
+      });
+      req.on('error', () => resolve(null));
+      req.end();
+    });
+
+    if (!res) return;
+    const isClockedIn = res.isClockedIn;
+    const workingSeconds = res.workingSeconds || 0;
+
+    if (isClockedIn && workingSeconds >= 4 * 3600 && !fourHourReminderShown) {
+      fourHourReminderShown = true;
+      if (Notification.isSupported()) {
+        new Notification({
+          title: '💪 Great work!',
+          body: `You've been working for 4 hours! Take a short break if needed.`,
+          silent: false,
+        }).show();
+      }
+    }
+
+    if (!isClockedIn) {
+      fourHourReminderShown = false;
+    }
+
+    const now = new Date();
+    const day = now.getDay();
+    const hour = now.getHours();
+    const isWorkingDay = day >= 1 && day <= 5;
+    const isWorkingHours = hour >= 9 && hour <= 18;
+
+    if (!isClockedIn && isWorkingDay && isWorkingHours) {
+      showClockInPopup();
+    }
+  } catch (e) {
+    console.error('Status check error:', e);
+  }
+}, 60 * 60 * 1000);
 });
 
 // 🔥 AUTO CLOCK-OUT: App quit (user closes app from tray)
@@ -605,7 +605,101 @@ ipcMain.on('show-notification', (_, msg) => {
     }).show();
   }
 });
+// 🔔 "Are you still working?" popup
+let stillWorkingWindow = null;
 
+function showStillWorkingPopup() {
+  if (stillWorkingWindow && !stillWorkingWindow.isDestroyed()) {
+    stillWorkingWindow.focus();
+    return;
+  }
+
+  stillWorkingWindow = new BrowserWindow({
+    width: 380,
+    height: 280,
+    resizable: false,
+    alwaysOnTop: true,
+    center: true,
+    frame: false,
+    skipTaskbar: false,
+    webPreferences: { nodeIntegration: true, contextIsolation: false },
+    title: 'Dart - Are you working?',
+  });
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #fff; border-radius: 16px; overflow: hidden; user-select: none; height: 100vh; }
+  .header { background: linear-gradient(135deg, #f59e0b, #f97316); padding: 24px; text-align: center; color: white; }
+  .icon { font-size: 40px; margin-bottom: 8px; }
+  .title { font-size: 18px; font-weight: 800; }
+  .body { padding: 24px; text-align: center; }
+  .msg { font-size: 13px; color: #555; margin-bottom: 8px; line-height: 1.5; }
+  .timer { font-size: 12px; color: #f97316; font-weight: 700; margin-bottom: 18px; }
+  .btn { width: 100%; padding: 13px; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; margin-bottom: 8px; }
+  .btn-yes { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; }
+  .btn-no { background: #f5f5f5; color: #666; font-size: 12px; padding: 10px; }
+  .drag { -webkit-app-region: drag; position: absolute; top: 0; left: 0; right: 0; height: 30px; }
+</style>
+</head>
+<body>
+<div class="drag"></div>
+<div class="header">
+  <div class="icon">👀</div>
+  <div class="title">Are you still working?</div>
+</div>
+<div class="body">
+  <div class="msg">We noticed you've been inactive for a while.</div>
+  <div class="timer">Auto clock-out in <span id="countdown">300</span>s</div>
+  <button class="btn btn-yes" onclick="stillWorking()">✅ Yes, I'm working</button>
+  <button class="btn btn-no" onclick="clockOut()">Clock me out</button>
+</div>
+<script>
+  const { ipcRenderer } = require('electron');
+  let secs = 300;
+  const timer = setInterval(() => {
+    secs--;
+    document.getElementById('countdown').textContent = secs;
+    if (secs <= 0) { clearInterval(timer); ipcRenderer.send('still-working-timeout'); }
+  }, 1000);
+  function stillWorking() { clearInterval(timer); ipcRenderer.send('still-working-yes'); }
+  function clockOut() { clearInterval(timer); ipcRenderer.send('still-working-no'); }
+</script>
+</body>
+</html>`;
+
+  stillWorkingWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+  stillWorkingWindow.on('closed', () => { stillWorkingWindow = null; });
+}
+
+// Tracker se "still working check" signal
+ipcMain.on('tracker-notification', (_, msg) => {
+  if (msg.type === 'still_working_check' && isLoggedIn) {
+    showStillWorkingPopup();
+  }
+});
+
+// User: "Yes I'm working"
+ipcMain.on('still-working-yes', () => {
+  console.log('✅ User confirmed working');
+  if (stillWorkingWindow && !stillWorkingWindow.isDestroyed()) stillWorkingWindow.close();
+});
+
+// User: "Clock me out" OR timeout
+ipcMain.on('still-working-no', async () => {
+  console.log('🔴 User chose clock out');
+  if (stillWorkingWindow && !stillWorkingWindow.isDestroyed()) stillWorkingWindow.close();
+  await clockRequest('CLOCK_OUT', 'Auto - idle (user confirmed away)');
+});
+
+ipcMain.on('still-working-timeout', async () => {
+  console.log('⏰ Still working timeout - auto clock out');
+  if (stillWorkingWindow && !stillWorkingWindow.isDestroyed()) stillWorkingWindow.close();
+  await clockRequest('CLOCK_OUT', 'Auto - idle timeout (no response)');
+});
 ipcMain.on('show-clock-in-prompt', () => {
   showClockInPopup();
 });
