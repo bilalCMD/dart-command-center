@@ -64,42 +64,49 @@ export async function GET(req: Request) {
       };
     }
 
-    // Process ALL events together (NOT grouped by day)
-    // Session belongs to the day it STARTED (CLOCK_IN day) - handles night shifts
+    // Process ALL events. Session = CLOCK_IN to next CLOCK_OUT.
+    // Handles night shifts (session on clock-in day) + caps runaway sessions.
+    const MAX_SESSION_SECONDS = 16 * 3600; // max 16h per session (safety cap)
     let activeSince: Date | null = null;
+
+    const addSession = (start: Date, end: Date | null) => {
+      const endTime = end ? end.getTime() : Date.now();
+      let dur = Math.floor((endTime - start.getTime()) / 1000);
+      // Cap runaway sessions (forgot to clock out for days)
+      if (dur > MAX_SESSION_SECONDS) dur = MAX_SESSION_SECONDS;
+      if (dur < 0) dur = 0;
+      const sessionDay = toPKTDateKey(start);
+      if (dayMap[sessionDay]) {
+        dayMap[sessionDay].sessions.push({
+          clockIn: start.toISOString(),
+          clockOut: end ? end.toISOString() : null,
+          duration: dur,
+        });
+        dayMap[sessionDay].seconds += dur;
+      }
+    };
 
     for (const e of events) {
       if (e.type === 'CLOCK_IN') {
-        // If already clocked in (duplicate), ignore
-        if (!activeSince) activeSince = new Date(e.timestamp);
-      } else if (e.type === 'CLOCK_OUT' && activeSince) {
-        const clockOutTime = new Date(e.timestamp);
-        const dur = Math.floor((clockOutTime.getTime() - activeSince.getTime()) / 1000);
-        // Assign session to the CLOCK_IN day (not clock-out day)
-        const sessionDay = toPKTDateKey(activeSince);
-        if (dayMap[sessionDay]) {
-          dayMap[sessionDay].sessions.push({
-            clockIn: activeSince.toISOString(),
-            clockOut: clockOutTime.toISOString(),
-            duration: dur,
-          });
-          dayMap[sessionDay].seconds += dur;
+        // If already clocked in without a clock-out (forgot), close old session first
+        if (activeSince) {
+          addSession(activeSince, new Date(e.timestamp));
         }
+        activeSince = new Date(e.timestamp);
+      } else if (e.type === 'CLOCK_OUT' && activeSince) {
+        addSession(activeSince, new Date(e.timestamp));
         activeSince = null;
       }
     }
 
-    // Still clocked in (ongoing session)
+    // Still clocked in (ongoing session) - only count if started today
     if (activeSince) {
       const sessionDay = toPKTDateKey(activeSince);
-      if (dayMap[sessionDay]) {
-        const dur = Math.floor((Date.now() - activeSince.getTime()) / 1000);
-        dayMap[sessionDay].sessions.push({
-          clockIn: activeSince.toISOString(),
-          clockOut: null,
-          duration: dur,
-        });
-        dayMap[sessionDay].seconds += dur;
+      if (sessionDay === todayKey) {
+        addSession(activeSince, null);
+      } else {
+        // Started on a past day but never clocked out - cap it
+        addSession(activeSince, new Date(activeSince.getTime() + MAX_SESSION_SECONDS * 1000));
       }
     }
 
