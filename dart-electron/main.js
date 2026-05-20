@@ -214,6 +214,37 @@ function clockRequest(type, note) {
 // 🔥 AUTO CLOCK-OUT function
 async function autoClockOut(reason) {
   try {
+    // Pehle current status check karo - agar break/away mein hai to clock out MAT karo
+    const statusRes = await new Promise((resolve) => {
+      const req = https.request({
+        hostname: 'portal.dartwebsite.com',
+        port: 443,
+        path: '/api/clock/today',
+        method: 'GET',
+        headers: { 'Cookie': currentCookie },
+      }, (res) => {
+        let data = '';
+        res.on('data', d => data += d);
+        res.on('end', () => {
+          try { resolve(JSON.parse(data)); } catch { resolve(null); }
+        });
+      });
+      req.on('error', () => resolve(null));
+      req.end();
+    });
+
+    // Agar break ya away mein hai, to clock out skip karo (user wapas aayega)
+    if (statusRes && (statusRes.isOnBreak || statusRes.isAway)) {
+      console.log(`⏸️ Skip auto clock-out: user is on break/away (${reason})`);
+      return null;
+    }
+
+    // Agar already clocked out hai, to kuch mat karo
+    if (statusRes && !statusRes.isClockedIn) {
+      console.log(`⏸️ Skip auto clock-out: already clocked out`);
+      return null;
+    }
+
     console.log(`🔌 Auto clock-out triggered: ${reason}`);
     const status = await clockRequest('CLOCK_OUT', `Auto - ${reason}`);
     console.log(`Auto clock-out result: ${status}`);
@@ -448,18 +479,14 @@ app.whenReady().then(() => {
     }
   });
 
-  // 🔥 AUTO CLOCK-OUT: Screen lock (Win+L)
+  // Screen lock - sirf log, NO auto clock-out (break/namaz ke liye lock karte hain)
   powerMonitor.on('lock-screen', async () => {
-    console.log('🔒 Screen locked - AUTO CLOCK OUT');
-    if (isLoggedIn) {
-      await autoClockOut('screen locked');
-    }
+    console.log('🔒 Screen locked - no auto clock-out (might be break/namaz)');
   });
 
   // ☀️ System resumed - show clock in popup
   powerMonitor.on('resume', async () => {
     console.log('☀️ System resumed');
-    setTimeout(async () => {
       if (isLoggedIn) {
         showClockInPopup();
       }

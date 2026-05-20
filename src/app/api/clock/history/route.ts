@@ -64,49 +64,43 @@ export async function GET(req: Request) {
       };
     }
 
-    // Group by PKT date
-    const eventsByDay: Record<string, typeof events> = {};
+    // Process ALL events together (NOT grouped by day)
+    // Session belongs to the day it STARTED (CLOCK_IN day) - handles night shifts
+    let activeSince: Date | null = null;
+
     for (const e of events) {
-      const key = toPKTDateKey(new Date(e.timestamp));
-      if (!eventsByDay[key]) eventsByDay[key] = [];
-      eventsByDay[key].push(e);
-    }
-
-    // Process sessions
-    for (const [date, dayEvents] of Object.entries(eventsByDay)) {
-      if (!dayMap[date]) continue;
-
-      let activeSince: Date | null = null;
-      let totalSeconds = 0;
-
-      for (const e of dayEvents) {
-        if (e.type === 'CLOCK_IN') {
-          activeSince = new Date(e.timestamp);
-        } else if (e.type === 'CLOCK_OUT' && activeSince) {
-          const dur = Math.floor(
-            (new Date(e.timestamp).getTime() - activeSince.getTime()) / 1000
-          );
-          totalSeconds += dur;
-          dayMap[date].sessions.push({
+      if (e.type === 'CLOCK_IN') {
+        // If already clocked in (duplicate), ignore
+        if (!activeSince) activeSince = new Date(e.timestamp);
+      } else if (e.type === 'CLOCK_OUT' && activeSince) {
+        const clockOutTime = new Date(e.timestamp);
+        const dur = Math.floor((clockOutTime.getTime() - activeSince.getTime()) / 1000);
+        // Assign session to the CLOCK_IN day (not clock-out day)
+        const sessionDay = toPKTDateKey(activeSince);
+        if (dayMap[sessionDay]) {
+          dayMap[sessionDay].sessions.push({
             clockIn: activeSince.toISOString(),
-            clockOut: new Date(e.timestamp).toISOString(),
+            clockOut: clockOutTime.toISOString(),
             duration: dur,
           });
-          activeSince = null;
+          dayMap[sessionDay].seconds += dur;
         }
+        activeSince = null;
       }
+    }
 
-      if (activeSince && date === todayKey) {
+    // Still clocked in (ongoing session)
+    if (activeSince) {
+      const sessionDay = toPKTDateKey(activeSince);
+      if (dayMap[sessionDay]) {
         const dur = Math.floor((Date.now() - activeSince.getTime()) / 1000);
-        totalSeconds += dur;
-        dayMap[date].sessions.push({
+        dayMap[sessionDay].sessions.push({
           clockIn: activeSince.toISOString(),
           clockOut: null,
           duration: dur,
         });
+        dayMap[sessionDay].seconds += dur;
       }
-
-      dayMap[date].seconds = totalSeconds;
     }
 
     const days = Object.values(dayMap);
