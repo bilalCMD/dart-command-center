@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const parsed = eodSchema.safeParse(body);
-    f
+
     if (!parsed.success) {
       return NextResponse.json(
         { error: 'Invalid request', details: parsed.error.issues },
