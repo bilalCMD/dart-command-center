@@ -350,7 +350,7 @@ function ReportModal({ r, onClose }: { r: EodReport; onClose: () => void }) {
 }
 
 // ─── History Row ──────────────────────────────────────────────
-function HistoryRow({ r, onClick }: { r: EodReport; onClick: () => void }) {
+function HistoryRow({ r, onClick, onEdit }: { r: EodReport; onClick: () => void; onEdit: () => void }) {
   const tasks = parseTasks(r.tasksCompleted);
   const isToday = new Date(r.date).toDateString() === new Date().toDateString();
   const kpi = KPIS.find(k => k.name === r.kpiFocus);
@@ -388,10 +388,21 @@ function HistoryRow({ r, onClick }: { r: EodReport; onClick: () => void }) {
         </div>
       </div>
 
-      <div className="w-7 h-7 rounded-full bg-[var(--surface2)] group-hover:bg-[var(--orange)] flex items-center justify-center shrink-0 transition-colors">
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="group-hover:text-white text-[var(--muted)]">
-          <path d="M3.5 2l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+      <div className="flex items-center gap-2 shrink-0">
+        <span
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          className="w-7 h-7 rounded-full bg-blue-50 hover:bg-blue-500 flex items-center justify-center transition-colors cursor-pointer group/edit"
+          title="Edit this report"
+        >
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" className="group-hover/edit:text-white text-blue-500">
+            <path d="M8.5 1.5l2 2L4 10l-2.5.5L2 8l6.5-6.5z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+        <div className="w-7 h-7 rounded-full bg-[var(--surface2)] group-hover:bg-[var(--orange)] flex items-center justify-center transition-colors">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="group-hover:text-white text-[var(--muted)]">
+            <path d="M3.5 2l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
       </div>
     </button>
   );
@@ -415,6 +426,9 @@ export default function EODPage() {
   const [kpiFocus, setKpiFocus] = useState(KPIS[0].name);
   const [blockers, setBlockers] = useState('');
   const [tomorrowPlan, setTomorrowPlan] = useState('');
+  const [editingReport, setEditingReport] = useState<EodReport | null>(null);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [showBackdatedForm, setShowBackdatedForm] = useState(false);
 
   // History filters & pagination
   const [filter, setFilter] = useState<FilterType>('all');
@@ -442,7 +456,16 @@ export default function EODPage() {
 
   const streak = getStreak(reports);
   const totalTasks = reports.reduce((sum, r) => sum + parseTasks(r.tasksCompleted).length, 0);
-
+  const handleEdit = (report: EodReport) => {
+    setEditingReport(report);
+    setTasks(parseTasks(report.tasksCompleted));
+    setKpiFocus(report.kpiFocus || KPIS[0].name);
+    setBlockers(report.blockers || '');
+    setTomorrowPlan(report.tomorrowPlan || '');
+    setSelectedDate(new Date(report.date).toISOString().split('T')[0]);
+    setShowBackdatedForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   const handleSubmit = async () => {
     if (!tasks.length) { setError('At least one task is required'); return; }
     setSubmitting(true); setError(''); setSuccess('');
@@ -461,11 +484,14 @@ export default function EODPage() {
       if (!res.ok) {
         setError(data.error || 'Failed to submit');
       } else {
-        setSuccess('EOD submitted successfully!');
+        setSuccess(editingReport ? 'EOD updated successfully!' : 'EOD submitted successfully!');
         setTasks([]);
         setKpiFocus(KPIS[0].name);
         setBlockers('');
         setTomorrowPlan('');
+        setEditingReport(null);
+        setShowBackdatedForm(false);
+        setSelectedDate(new Date().toISOString().split('T')[0]);
         fetchReports();
       }
     } catch { setError('Something went wrong'); }
@@ -667,10 +693,10 @@ export default function EODPage() {
         </div>
         {/* Status badge */}
         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[11px] font-bold border ${loading
-            ? 'bg-[var(--surface2)] text-[var(--muted)] border-[var(--border)]'
-            : submittedToday
-              ? 'bg-green-50 text-green-700 border-green-200'
-              : 'bg-amber-50 text-amber-700 border-amber-200'
+          ? 'bg-[var(--surface2)] text-[var(--muted)] border-[var(--border)]'
+          : submittedToday
+            ? 'bg-green-50 text-green-700 border-green-200'
+            : 'bg-amber-50 text-amber-700 border-amber-200'
           }`}>
           {loading ? (
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--muted)]" />
@@ -720,9 +746,40 @@ export default function EODPage() {
           </div>
         </div>
       )}
+      {/* Backdated EOD Toggle */}
+      <div className="mb-5 flex items-center gap-3 flex-wrap">
+        <button
+          onClick={() => {
+            setShowBackdatedForm(!showBackdatedForm);
+            setEditingReport(null);
+            if (!showBackdatedForm) {
+              setTasks([]); setKpiFocus(KPIS[0].name); setBlockers(''); setTomorrowPlan('');
+            }
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-bold border transition-all cursor-pointer ${showBackdatedForm ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-blue-600 border-blue-200 hover:border-blue-400'}`}
+        >
+          📅 {showBackdatedForm ? 'Cancel Backdated Entry' : 'Add EOD for Past Date'}
+        </button>
 
+        {showBackdatedForm && (
+          <input
+            type="date"
+            value={selectedDate}
+            max={new Date().toISOString().split('T')[0]}
+            onChange={e => setSelectedDate(e.target.value)}
+            className="px-4 py-2.5 rounded-xl border border-blue-300 bg-white text-[13px] font-semibold text-[var(--text)] outline-none focus:border-blue-500 cursor-pointer"
+          />
+        )}
+
+        {editingReport && (
+          <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg">
+            ✏️ Editing report from {new Date(editingReport.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </span>
+        )}
+      </div>
       {/* ── FORM ──────────────────────────────────────────── */}
-      {!submittedToday && (
+      {/* ── FORM ── */}
+      {(!submittedToday || showBackdatedForm || editingReport) && (
         <div className="bg-white rounded-2xl border border-[var(--border)] mb-8">
 
           {/* Step 1 — Tasks */}
@@ -798,7 +855,7 @@ export default function EODPage() {
                   </svg>
                   Submitting...
                 </>
-              ) : 'Submit EOD Report'}
+              ) : editingReport ? 'Update EOD Report' : showBackdatedForm ? `Submit EOD for ${new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Submit EOD Report'}
             </button>
           </div>
         </div>
@@ -821,8 +878,8 @@ export default function EODPage() {
             key={f}
             onClick={() => setFilter(f)}
             className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold capitalize transition-all border-none cursor-pointer ${filter === f
-                ? 'dart-gradient text-white shadow-sm'
-                : 'bg-transparent text-[var(--muted)] hover:text-[var(--text)]'
+              ? 'dart-gradient text-white shadow-sm'
+              : 'bg-transparent text-[var(--muted)] hover:text-[var(--text)]'
               }`}
           >
             {f === 'daily' ? 'Today' : f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
@@ -849,7 +906,7 @@ export default function EODPage() {
         <>
           <div className="flex flex-col gap-2.5">
             {pagedReports.map((r) => (
-              <HistoryRow key={r.id} r={r} onClick={() => setSelectedReport(r)} />
+              <HistoryRow key={r.id} r={r} onClick={() => setSelectedReport(r)} onEdit={() => handleEdit(r)} />
             ))}
           </div>
 
@@ -873,8 +930,8 @@ export default function EODPage() {
                     key={n}
                     onClick={() => setPage(n)}
                     className={`w-7 h-7 rounded-lg text-[11px] font-bold border-none cursor-pointer transition-all ${n === page
-                        ? 'dart-gradient text-white'
-                        : 'bg-[var(--surface2)] text-[var(--muted)] hover:text-[var(--text)]'
+                      ? 'dart-gradient text-white'
+                      : 'bg-[var(--surface2)] text-[var(--muted)] hover:text-[var(--text)]'
                       }`}
                   >
                     {n}

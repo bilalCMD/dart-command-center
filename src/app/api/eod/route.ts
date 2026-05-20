@@ -8,6 +8,7 @@ const eodSchema = z.object({
   kpiFocus: z.string().optional(),
   blockers: z.string().optional(),
   tomorrowPlan: z.string().optional(),
+  date: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const parsed = eodSchema.safeParse(body);
-
+    f
     if (!parsed.success) {
       return NextResponse.json(
         { error: 'Invalid request', details: parsed.error.issues },
@@ -25,10 +26,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { tasksCompleted, kpiFocus, blockers, tomorrowPlan } = parsed.data;
+    const { tasksCompleted, kpiFocus, blockers, tomorrowPlan, date } = parsed.data;
 
-    const reportDate = new Date();
+    // Use provided date or today (for backdated EOD)
+    const reportDate = date ? new Date(date) : new Date();
     reportDate.setHours(0, 0, 0, 0);
+
+    // Prevent future dates
+    const todayCheck = new Date();
+    todayCheck.setHours(0, 0, 0, 0);
+    if (reportDate > todayCheck) {
+      return NextResponse.json({ error: 'Cannot submit EOD for future dates' }, { status: 400 });
+    }
 
     const report = await prisma.eodReport.upsert({
       where: {
