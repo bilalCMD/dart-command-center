@@ -33,12 +33,12 @@ export async function POST(req: NextRequest) {
     let reportDate: Date;
     if (date) {
       // date is "YYYY-MM-DD" - treat as PKT date, store as that day's UTC midnight
-      reportDate = new Date(date + 'T00:00:00.000Z');
+      reportDate = new Date(date + 'T12:00:00.000Z');
     } else {
       // Today in PKT
       const now = new Date();
       const pktNow = new Date(now.getTime() + 5 * 60 * 60 * 1000);
-      reportDate = new Date(pktNow.toISOString().split('T')[0] + 'T00:00:00.000Z');
+      reportDate = new Date(pktNow.toISOString().split('T')[0] + 'T12:00:00.000Z');
     }
 
     // Prevent future dates

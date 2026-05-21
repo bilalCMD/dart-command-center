@@ -478,6 +478,7 @@ export default function EODPage() {
           kpiFocus,
           blockers,
           tomorrowPlan,
+          date: (showBackdatedForm || editingReport) ? selectedDate : undefined,
         }),
       });
       const data = await res.json();
