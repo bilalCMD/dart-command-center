@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
 
       const totalIdleSeconds = calcIdleWithinSessions(idleLogs, allClockEvents);
       const totalBreakSeconds = calculateBreakSeconds(allClockEvents);
+      const totalAwaySeconds = calculateAwaySeconds(allClockEvents);
 
       return NextResponse.json({
         member: members.find(m => m.id === userId),
@@ -64,6 +65,7 @@ export async function GET(req: NextRequest) {
         isClockedIn: !isCurrentlyOut && !!firstClockIn,
         totalIdleSeconds,
         totalBreakSeconds,
+        totalAwaySeconds,
         byApp: Object.values(byApp).sort((a: any, b: any) => b.seconds - a.seconds),
         idleLogs,
       });
