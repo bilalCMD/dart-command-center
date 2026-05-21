@@ -29,12 +29,22 @@ export async function POST(req: NextRequest) {
     const { tasksCompleted, kpiFocus, blockers, tomorrowPlan, date } = parsed.data;
 
     // Use provided date or today (for backdated EOD)
-    const reportDate = date ? new Date(date) : new Date();
-    reportDate.setHours(0, 0, 0, 0);
+    // Parse date in PKT context to avoid timezone shift
+    let reportDate: Date;
+    if (date) {
+      // date is "YYYY-MM-DD" - treat as PKT date, store as that day's UTC midnight
+      reportDate = new Date(date + 'T00:00:00.000Z');
+    } else {
+      // Today in PKT
+      const now = new Date();
+      const pktNow = new Date(now.getTime() + 5 * 60 * 60 * 1000);
+      reportDate = new Date(pktNow.toISOString().split('T')[0] + 'T00:00:00.000Z');
+    }
 
     // Prevent future dates
-    const todayCheck = new Date();
-    todayCheck.setHours(0, 0, 0, 0);
+    // Today in PKT, at UTC noon (for future-date validation)
+    const pktNowCheck = new Date(Date.now() + 5 * 60 * 60 * 1000);
+    const todayCheck = new Date(pktNowCheck.toISOString().split('T')[0] + 'T12:00:00.000Z');
     if (reportDate > todayCheck) {
       return NextResponse.json({ error: 'Cannot submit EOD for future dates' }, { status: 400 });
     }
@@ -168,10 +178,14 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Today's PKT date string for comparison
+    const pktNowGet = new Date(Date.now() + 5 * 60 * 60 * 1000);
+    const todayPKTStr = pktNowGet.toISOString().split('T')[0];
     const submittedToday = reports.some(
-      (r) => r.date.getTime() === today.getTime() && r.userId === user!.id
+      (r) => {
+        const rPKTStr = new Date(r.date.getTime() + 5 * 60 * 60 * 1000).toISOString().split('T')[0];
+        return rPKTStr === todayPKTStr && r.userId === user!.id;
+      }
     );
 
     return NextResponse.json({
