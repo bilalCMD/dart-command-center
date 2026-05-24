@@ -39,7 +39,7 @@ function getActiveWindowInfo() {
         return { procName: result.substring(0, idx).trim(), title: result.substring(idx + 2).trim() };
       }
     }
-  } catch (e) {}
+  } catch (e) { }
   return { procName: 'Unknown', title: 'Unknown' };
 }
 
@@ -133,7 +133,7 @@ function getMousePosition() {
         return { x, y };
       }
     }
-  } catch (e) {}
+  } catch (e) { }
   return null;
 }
 
@@ -193,66 +193,66 @@ function notifyApp(message) {
 }
 
 // 🔒 If user is on break, don't track idle (break ≠ idle)
-  // We'll check this via /api/clock/today endpoint periodically
-  if (pos) {
-    if (pos.x !== lastMouseX || pos.y !== lastMouseY) {
-      lastMouseX = pos.x;
-      lastMouseY = pos.y;
-      lastActiveTime = now;
-    }
+// We'll check this via /api/clock/today endpoint periodically
+if (pos) {
+  if (pos.x !== lastMouseX || pos.y !== lastMouseY) {
+    lastMouseX = pos.x;
+    lastMouseY = pos.y;
+    lastActiveTime = now;
   }
-  // Also check if any window is active = user is working
-  try {
-    const { procName } = getActiveWindowInfo();
-    if (procName && procName !== 'Unknown' && procName !== 'Idle') {
-      lastActiveTime = now;
-    }
-  } catch(e) {}
-  const idleTime = now - lastActiveTime;
+}
+// Also check if any window is active = user is working
+try {
+  const { procName } = getActiveWindowInfo();
+  if (procName && procName !== 'Unknown' && procName !== 'Idle') {
+    lastActiveTime = now;
+  }
+} catch (e) { }
+const idleTime = now - lastActiveTime;
 
-  if (idleTime >= IDLE_THRESHOLD && !isIdle) {
-    isIdle = true;
-    idleStart = new Date(lastActiveTime + IDLE_THRESHOLD);
-    console.log('💤 IDLE at', idleStart.toLocaleTimeString());
-  }
+if (idleTime >= IDLE_THRESHOLD && !isIdle) {
+  isIdle = true;
+  idleStart = new Date(lastActiveTime + IDLE_THRESHOLD);
+  console.log('💤 IDLE at', idleStart.toLocaleTimeString());
+}
 
-  // 🔔 "Are you still working?" - after 30 min idle, ask user
-  const STILL_WORKING_THRESHOLD = 30 * 60 * 1000; // 30 min
-  if (idleTime >= STILL_WORKING_THRESHOLD && !stillWorkingAsked) {
-    stillWorkingAsked = true;
-    notifyApp({ type: 'still_working_check' });
-    console.log('🔔 Asking: Are you still working?');
-  }
-  if (idleTime < IDLE_THRESHOLD) {
-    stillWorkingAsked = false;
-  }
+// 🔔 "Are you still working?" - after 30 min idle, ask user
+const STILL_WORKING_THRESHOLD = 30 * 60 * 1000; // 30 min
+if (idleTime >= STILL_WORKING_THRESHOLD && !stillWorkingAsked) {
+  stillWorkingAsked = true;
+  notifyApp({ type: 'still_working_check' });
+  console.log('🔔 Asking: Are you still working?');
+}
+if (idleTime < IDLE_THRESHOLD) {
+  stillWorkingAsked = false;
+}
 
-  // 🔔 Only notification - NO auto-actions
-  if (idleTime >= BREAK_WARNING_THRESHOLD && !breakWarningShown) {
-    breakWarningShown = true;
-    notifyApp({
-      type: 'break_warning',
-      title: 'Time for a break?',
-      message: `You've been idle for 90 minutes. Consider taking a break.`,
+// 🔔 Only notification - NO auto-actions
+if (idleTime >= BREAK_WARNING_THRESHOLD && !breakWarningShown) {
+  breakWarningShown = true;
+  notifyApp({
+    type: 'break_warning',
+    title: 'Time for a break?',
+    message: `You've been idle for 90 minutes. Consider taking a break.`,
+  });
+}
+
+if (idleTime < IDLE_THRESHOLD && isIdle) {
+  isIdle = false;
+  breakWarningShown = false;
+  const idleTo = new Date();
+  const seconds = Math.round((idleTo - idleStart) / 1000);
+  // 🔒 Only log if reasonable duration and not already logged
+  if (seconds > 30 && seconds < 4 * 60 * 60) { // max 4 hours per single log
+    idleBuffer.push({
+      idleFrom: idleStart.toISOString(),
+      idleTo: idleTo.toISOString(),
+      seconds
     });
   }
-
-  if (idleTime < IDLE_THRESHOLD && isIdle) {
-    isIdle = false;
-    breakWarningShown = false;
-    const idleTo = new Date();
-    const seconds = Math.round((idleTo - idleStart) / 1000);
-    // 🔒 Only log if reasonable duration and not already logged
-    if (seconds > 30 && seconds < 4 * 60 * 60) { // max 4 hours per single log
-      idleBuffer.push({ 
-        idleFrom: idleStart.toISOString(), 
-        idleTo: idleTo.toISOString(), 
-        seconds 
-      });
-    }
-    idleStart = null;
-    lastActiveTime = Date.now(); // Reset to prevent re-trigger
-  }
+  idleStart = null;
+  lastActiveTime = Date.now(); // Reset to prevent re-trigger
+}
 }
 
 // 🔒 SIMPLIFIED Power monitoring - no auto-actions
@@ -293,7 +293,7 @@ function startTracking(baseUrl, win, electronApp, powerMonitor) {
   backendUrl = baseUrl;
   mainWindow = win;
   if (powerMonitor) setupPowerMonitoring(electronApp, powerMonitor);
-  mouseCheckInterval = setInterval(() => { checkMouseAndIdle(); }, 5000);
+  mouseCheckInterval = setInterval(() => { checkMouseAndIdle(); }, 20000);
   trackingInterval = setInterval(() => {
     if (isIdle) return;
     const { procName, title } = getActiveWindowInfo();
@@ -307,8 +307,8 @@ function startTracking(baseUrl, win, electronApp, powerMonitor) {
         activityBuffer.push({ appName, site: null, seconds: 10 });
       }
     }
-  }, 10000);
-  flushInterval = setInterval(() => { flush(); }, 60000);
+  }, 20000);
+  flushInterval = setInterval(() => { flush(); }, 120000);
 }
 
 function stopTracking() {

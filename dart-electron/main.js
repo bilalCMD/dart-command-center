@@ -32,6 +32,7 @@ autoUpdater.autoInstallOnAppQuit = true;
 
 autoUpdater.on('update-available', (info) => {
   console.log('📥 Update available:', info.version);
+  injectUpdateButton('available');
   if (Notification.isSupported()) {
     new Notification({
       title: '🔄 Update Available',
@@ -55,7 +56,56 @@ autoUpdater.on('update-downloaded', (info) => {
 
 autoUpdater.on('error', (err) => {
   console.error('Update error:', err.message);
+  injectUpdateButton('error');
 });
+
+autoUpdater.on('update-not-available', () => {
+  console.log('✅ App is up to date');
+  injectUpdateButton('latest');
+});
+
+let updateState = 'checking'; // 'latest' | 'available' | 'checking' | 'error'
+
+function injectUpdateButton(state) {
+  updateState = state;
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const version = app.getVersion();
+  mainWindow.webContents.executeJavaScript(`
+    (function() {
+      let btn = document.getElementById('dart-update-btn');
+      if (!btn) {
+        btn = document.createElement('div');
+        btn.id = 'dart-update-btn';
+        btn.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999999;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:99px;font-family:-apple-system,Segoe UI,sans-serif;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:all 0.2s;user-select:none;';
+        document.body.appendChild(btn);
+      }
+      const state = '${state}';
+      const version = 'v${version}';
+      if (state === 'available') {
+        btn.style.background = '#ef4444';
+        btn.style.color = '#fff';
+        btn.innerHTML = '🔴 Update Available — Click to Install';
+        btn.onclick = function() {
+          btn.innerHTML = '⏳ Installing...';
+          window.dartInstallUpdate && window.dartInstallUpdate();
+        };
+      } else if (state === 'latest') {
+        btn.style.background = '#22c55e';
+        btn.style.color = '#fff';
+        btn.innerHTML = '🟢 Up to date (' + version + ')';
+        btn.onclick = null;
+      } else if (state === 'checking') {
+        btn.style.background = '#94a3b8';
+        btn.style.color = '#fff';
+        btn.innerHTML = '⏳ Checking for updates...';
+      } else {
+        btn.style.background = '#f59e0b';
+        btn.style.color = '#fff';
+        btn.innerHTML = '⚠️ Update check failed (' + version + ')';
+      }
+    })();
+  `).catch(() => { });
+}
 
 // 🎨 Beautiful Update Popup
 function showUpdatePopup(version) {
@@ -368,8 +418,24 @@ function createMainWindow() {
 
   mainWindow.webContents.on('did-finish-load', async () => {
     await captureCookies();
+    // Inject floating update button + install bridge
+    mainWindow.webContents.executeJavaScript(`
+      window.dartInstallUpdate = function() {
+        window.location.href = 'dart-install-update://now';
+      };
+    `).catch(() => { });
+    injectUpdateButton(updateState);
+    // Trigger a check
+    autoUpdater.checkForUpdates().catch(() => { });
   });
-
+  // Intercept update install trigger from floating button
+  mainWindow.webContents.on('will-navigate', (e, url) => {
+    if (url.startsWith('dart-install-update://')) {
+      e.preventDefault();
+      console.log('🚀 Installing update from floating button...');
+      autoUpdater.quitAndInstall();
+    }
+  });
   session.defaultSession.cookies.on('changed', async (event, cookie, cause, removed) => {
     if (!removed && (
       cookie.name === 'next-auth.session-token' ||
