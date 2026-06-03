@@ -111,11 +111,12 @@ export default function AdminLeavePage() {
                       <div>
                         <p className="text-[13px] font-semibold text-[var(--text)]">{r.user?.name}</p>
                         <p className="text-[11px] text-[var(--muted)]">{r.user?.email}</p>
-                        <div className="flex items-center gap-2 mt-1.5">
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                           <span className="text-sm">{lt?.icon}</span>
                           <span className="text-[12px] font-medium text-[var(--text)]">{lt?.label} Leave</span>
                           <span className="text-[11px] text-[var(--muted)]">·</span>
-                          <span className="text-[12px] text-[var(--muted)]">{days} din</span>
+                          <span className="text-[12px] text-[var(--muted)]">{r.isHalfDay ? '0.5' : days} din</span>
+                          {r.isHalfDay && <span className="bg-[var(--orange)]/10 text-[var(--orange)] text-[10px] font-semibold px-1.5 py-0.5 rounded">Half Day</span>}
                         </div>
                         <p className="text-[11px] text-[var(--muted)] mt-1">
                           📅 {fmtDate(r.fromDate)} → {fmtDate(r.toDate)}

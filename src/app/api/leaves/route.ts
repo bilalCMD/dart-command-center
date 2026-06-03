@@ -8,6 +8,7 @@ const leaveSchema = z.object({
   type: z.enum(['ANNUAL', 'SICK', 'CASUAL', 'EMERGENCY', 'UNPAID']),
   fromDate: z.string(),
   toDate: z.string(),
+  isHalfDay: z.boolean().optional(),
   reason: z.string().min(3, 'Reason must be at least 3 characters'),
 });
 
@@ -34,8 +35,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { type, fromDate, toDate, reason } = parsed.data;
-    
+    const { type, fromDate, toDate, isHalfDay, reason } = parsed.data;
+
     // Parse dates as UTC midnight to avoid timezone issues
     const from = new Date(fromDate + 'T00:00:00.000Z');
     const to = new Date(toDate + 'T00:00:00.000Z');
@@ -47,9 +48,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Calculate days inclusive (same day = 1 day, next day = 2 days)
+    // Half-day only valid for single-day requests
+    const halfDay = !!isHalfDay && fromDate === toDate;
+
+    // Calculate days (half-day = 0.5)
     const msPerDay = 1000 * 60 * 60 * 24;
-    const daysRequested = Math.round((to.getTime() - from.getTime()) / msPerDay) + 1;
+    const daysRequested = halfDay
+      ? 0.5
+      : Math.round((to.getTime() - from.getTime()) / msPerDay) + 1;
 
     if (type !== 'UNPAID') {
       const currentYear = new Date().getFullYear();
@@ -85,6 +91,7 @@ export async function POST(req: NextRequest) {
         type,
         fromDate: from,
         toDate: to,
+        isHalfDay: halfDay,
         reason,
         status: 'PENDING',
       },
@@ -120,7 +127,7 @@ export async function POST(req: NextRequest) {
                   <tr><td style="padding:4px 0;"><strong>Type:</strong></td><td>${type}</td></tr>
                   <tr><td style="padding:4px 0;"><strong>From:</strong></td><td>${from.toDateString()}</td></tr>
                   <tr><td style="padding:4px 0;"><strong>To:</strong></td><td>${to.toDateString()}</td></tr>
-                  <tr><td style="padding:4px 0;"><strong>Days:</strong></td><td>${daysRequested}</td></tr>
+                  <tr><td style="padding:4px 0;"><strong>Days:</strong></td><td>${daysRequested}${halfDay ? ' (Half Day)' : ''}</td></tr>
                   <tr><td style="padding:4px 0;"><strong>Reason:</strong></td><td>${reason}</td></tr>
                 </table>
                 <div style="margin-top:24px;text-align:center;">

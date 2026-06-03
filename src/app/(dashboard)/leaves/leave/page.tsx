@@ -38,6 +38,7 @@ export default function LeavePage() {
     type: 'ANNUAL',
     fromDate: '',
     toDate: '',
+    isHalfDay: false,
     reason: '',
   });
 
@@ -72,11 +73,12 @@ export default function LeavePage() {
     if (!res.ok) { setError(data.error || 'Error aya'); return; }
     setSuccess(`Leave apply ho gayi! ${data.days} din ke liye.`);
     setShowForm(false);
-    setForm({ type: 'ANNUAL', fromDate: '', toDate: '', reason: '' });
+    setForm({ type: 'ANNUAL', fromDate: '', toDate: '', isHalfDay: false, reason: '' });
     fetchData();
   }
 
-  const days = calcDays(form.fromDate, form.toDate);
+  const isSingleDay = form.fromDate && form.toDate && form.fromDate === form.toDate;
+  const days = form.isHalfDay && isSingleDay ? 0.5 : calcDays(form.fromDate, form.toDate);
 
   return (
     <div className="space-y-5">
@@ -143,8 +145,28 @@ export default function LeavePage() {
             </div>
           </div>
 
+          {/* Half-day toggle — only show when single day selected */}
+          {isSingleDay && (
+            <button
+              type="button"
+              onClick={() => setForm(f => ({ ...f, isHalfDay: !f.isHalfDay }))}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${
+                form.isHalfDay
+                  ? 'border-[var(--orange)] bg-[var(--orange)]/10 text-[var(--orange)]'
+                  : 'border-[var(--border)] text-[var(--muted)] hover:border-[var(--orange)]/50'
+              }`}
+            >
+              <span className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] ${
+                form.isHalfDay ? 'bg-[var(--orange)] border-[var(--orange)] text-white' : 'border-[var(--border)]'
+              }`}>{form.isHalfDay ? '✓' : ''}</span>
+              🌗 Half Day Leave (0.5 din)
+            </button>
+          )}
+
           {days > 0 && (
-            <div className="text-xs text-[var(--orange)] font-medium">📅 {days} din ki leave</div>
+            <div className="text-xs text-[var(--orange)] font-medium">
+              📅 {days} din ki leave {form.isHalfDay && isSingleDay ? '(Half Day)' : ''}
+            </div>
           )}
 
           {/* Reason */}
@@ -216,8 +238,9 @@ export default function LeavePage() {
                     <span className="text-xl">{lt?.icon}</span>
                     <div>
                       <p className="text-[13px] font-semibold text-[var(--text)]">{lt?.label}</p>
-                      <p className="text-[11px] text-[var(--muted)]">
-                        {fmtDate(r.fromDate)} → {fmtDate(r.toDate)} · {days} din
+                      <p className="text-[11px] text-[var(--muted)] flex items-center gap-1.5">
+                        {fmtDate(r.fromDate)} → {fmtDate(r.toDate)} · {r.isHalfDay ? '0.5' : days} din
+                        {r.isHalfDay && <span className="bg-[var(--orange)]/10 text-[var(--orange)] text-[10px] font-semibold px-1.5 py-0.5 rounded">Half Day</span>}
                       </p>
                       <p className="text-[11px] text-[var(--subtle)] mt-0.5">{r.reason}</p>
                     </div>

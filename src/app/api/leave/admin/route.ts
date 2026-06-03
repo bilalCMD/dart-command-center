@@ -30,12 +30,13 @@ export async function PATCH(req: NextRequest) {
     data: { status }
   });
 
-  // If approved, deduct from balance
+  // If approved, deduct from balance (half-day = 0.5)
   if (status === 'APPROVED') {
-    const days = Math.ceil(
+    const fullDays = Math.ceil(
       (new Date(leaveReq.toDate).getTime() - new Date(leaveReq.fromDate).getTime())
       / (1000 * 60 * 60 * 24)
     ) + 1;
+    const days = (leaveReq as any).isHalfDay ? 0.5 : fullDays;
 
     await prisma.leaveBalance.updateMany({
       where: {

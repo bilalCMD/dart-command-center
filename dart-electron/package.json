@@ -1,6 +1,6 @@
 {
   "name": "dart-electron",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "description": "Dart Command Center Desktop App",
   "main": "main.js",
   "author": {
@@ -38,8 +38,8 @@
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "oneClick": true,
+      "perMachine": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Dart Command Center",

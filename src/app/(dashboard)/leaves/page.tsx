@@ -37,6 +37,7 @@ export default function LeavesPage() {
     type: 'ANNUAL',
     fromDate: '',
     toDate: '',
+    isHalfDay: false,
     reason: '',
   });
 
@@ -80,7 +81,7 @@ export default function LeavesPage() {
       } else {
         setSuccess(`Leave request submitted! (${data.daysRequested} days)`);
         setShowForm(false);
-        setForm({ type: 'ANNUAL', fromDate: '', toDate: '', reason: '' });
+        setForm({ type: 'ANNUAL', fromDate: '', toDate: '', isHalfDay: false, reason: '' });
         fetchData();
       }
     } catch {
@@ -220,6 +221,30 @@ export default function LeavesPage() {
                 className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm"
               />
             </div>
+
+            {/* Half-day toggle — only when same day selected */}
+            {form.fromDate && form.toDate && form.fromDate === form.toDate && (
+              <div>
+                <label className="text-[10px] text-[var(--muted)] font-bold tracking-wider block mb-1">
+                  HALF DAY?
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, isHalfDay: !form.isHalfDay })}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold transition-all w-full ${
+                    form.isHalfDay
+                      ? 'border-orange-500 bg-orange-500/10 text-orange-500'
+                      : 'border-[var(--border)] text-[var(--muted)] hover:border-orange-400'
+                  }`}
+                >
+                  <span className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] shrink-0 ${
+                    form.isHalfDay ? 'bg-orange-500 border-orange-500 text-white' : 'border-[var(--border)]'
+                  }`}>{form.isHalfDay ? '✓' : ''}</span>
+                  🌗 Half Day Leave — 0.5 din deduct hoga
+                </button>
+              </div>
+            )}
+
             <div>
               <label className="text-[10px] text-[var(--muted)] font-bold tracking-wider block mb-1">
                 REASON
@@ -285,7 +310,7 @@ export default function LeavesPage() {
                     {isAdmin && r.user && (
                       <div className="text-xs font-semibold mb-0.5">{r.user.name}</div>
                     )}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span
                         className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                         style={{
@@ -295,6 +320,11 @@ export default function LeavesPage() {
                       >
                         {r.type}
                       </span>
+                      {r.isHalfDay && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500">
+                          🌗 Half Day
+                        </span>
+                      )}
                       <span className="text-xs text-[var(--muted)]">
                         {formatDate(r.fromDate)} → {formatDate(r.toDate)}
                       </span>
@@ -418,8 +448,11 @@ export default function LeavesPage() {
               <div className="text-sm font-bold text-[var(--text)]">{formatDate(selectedRequest.toDate)}</div>
             </div>
           </div>
-          <div className="text-xs text-[var(--muted)] text-center mt-2">
-            {selectedRequest.daysRequested} day{selectedRequest.daysRequested > 1 ? 's' : ''} requested
+          <div className="text-xs text-[var(--muted)] text-center mt-2 flex items-center justify-center gap-2">
+            {selectedRequest.isHalfDay ? '0.5' : selectedRequest.daysRequested} day{(!selectedRequest.isHalfDay && selectedRequest.daysRequested > 1) ? 's' : ''} requested
+            {selectedRequest.isHalfDay && (
+              <span className="bg-orange-500/10 text-orange-500 text-[10px] font-bold px-2 py-0.5 rounded-full">🌗 Half Day</span>
+            )}
           </div>
         </div>
 

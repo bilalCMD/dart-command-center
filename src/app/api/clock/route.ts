@@ -6,6 +6,7 @@ import { z } from 'zod';
 const clockSchema = z.object({
   type: z.enum(['CLOCK_IN', 'CLOCK_OUT', 'BREAK_START', 'BREAK_END', 'AWAY_START', 'AWAY_END']),
   note: z.string().optional(),
+  timestamp: z.string().optional(), // ISO string for backdated events (e.g. auto clock-out on laptop close)
 });
 
 async function getShiftCutoff(userId: string): Promise<Date> {
@@ -45,7 +46,16 @@ export async function POST(req: NextRequest) {
     const parsed = clockSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
 
-    const { type, note } = parsed.data;
+    const { type, note, timestamp } = parsed.data;
+
+    // Backdated event (e.g. auto clock-out when laptop was closed) — insert directly, skip state machine
+    if (timestamp) {
+      const ts = new Date(timestamp);
+      if (isNaN(ts.getTime())) return NextResponse.json({ error: 'Invalid timestamp' }, { status: 400 });
+      const event = await prisma.clockEvent.create({ data: { userId: user!.id, type, note, timestamp: ts } });
+      return NextResponse.json({ event, backdated: true });
+    }
+
     const since = await getShiftCutoff(user!.id);
 
     const lastEvent = await prisma.clockEvent.findFirst({

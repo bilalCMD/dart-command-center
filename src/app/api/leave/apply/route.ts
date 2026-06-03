@@ -7,18 +7,21 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { type, fromDate, toDate, reason } = await req.json();
+  const { type, fromDate, toDate, reason, isHalfDay } = await req.json();
 
   const from = new Date(fromDate);
   const to = new Date(toDate);
-  const days = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+  // Half-day only valid for single-day requests
+  const halfDay = !!isHalfDay && fromDate === toDate;
+  const days = halfDay ? 0.5 : Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
   const balance = await prisma.leaveBalance.findFirst({
     where: { userId: session.user.id, type, year: new Date().getFullYear() }
   });
 
   if (!balance) return NextResponse.json({ error: 'Leave balance not found' }, { status: 400 });
-  
+
   if (balance.type !== 'UNPAID') {
     const remaining = balance.total - balance.used;
     if (days > remaining) return NextResponse.json({ error: `Sirf ${remaining} days bache hain` }, { status: 400 });
@@ -30,6 +33,7 @@ export async function POST(req: NextRequest) {
       type,
       fromDate: from,
       toDate: to,
+      isHalfDay: halfDay,
       reason,
       status: 'PENDING',
     }

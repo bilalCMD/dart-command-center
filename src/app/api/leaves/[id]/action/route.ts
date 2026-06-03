@@ -50,12 +50,13 @@ export async function PATCH(
     });
 
     if (status === 'APPROVED' && leave.type !== 'UNPAID') {
-      const days =
+      const fullDays =
         Math.ceil(
           (new Date(leave.toDate).getTime() -
             new Date(leave.fromDate).getTime()) /
             (1000 * 60 * 60 * 24)
         ) + 1;
+      const days = (leave as any).isHalfDay ? 0.5 : fullDays;
 
       await prisma.leaveBalance.updateMany({
         where: {

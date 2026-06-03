@@ -7,8 +7,6 @@ let mouseCheckInterval = null;
 let flushInterval = null;
 let activityBuffer = [];
 let idleBuffer = [];
-let lastMouseX = -1;
-let lastMouseY = -1;
 let lastActiveTime = Date.now();
 let isIdle = false;
 let idleStart = null;
@@ -17,10 +15,10 @@ let stillWorkingAsked = false;
 let sessionCookie = null;
 let mainWindow = null;
 let backendUrl = null;
+let electronPowerMonitor = null; // set via startTracking, used for getSystemIdleTime()
 
-// 🔒 Increased thresholds - more lenient
-const IDLE_THRESHOLD = 15 * 60 * 1000;           // 15 min idle detection (was 10)
-const BREAK_WARNING_THRESHOLD = 90 * 60 * 1000;  // 90 min - just notification
+const IDLE_THRESHOLD = 15 * 60 * 1000;           // 15 min
+const BREAK_WARNING_THRESHOLD = 90 * 60 * 1000;  // 90 min - notification only
 
 function setSessionCookie(cookie) {
   sessionCookie = cookie;
@@ -121,21 +119,6 @@ function getAppName(procName, windowTitle) {
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
-function getMousePosition() {
-  try {
-    if (process.platform === 'win32') {
-      const pos = execSync(
-        `powershell -command "Add-Type -AssemblyName System.Windows.Forms; $p = [System.Windows.Forms.Cursor]::Position; Write-Output ($p.X.ToString() + ',' + $p.Y.ToString())"`,
-        { timeout: 1000, encoding: 'utf8' }
-      ).trim();
-      if (pos) {
-        const [x, y] = pos.split(',').map(Number);
-        return { x, y };
-      }
-    }
-  } catch (e) { }
-  return null;
-}
 
 function sendRequest(path, data, method = 'POST') {
   return new Promise((resolve) => {
@@ -192,68 +175,65 @@ function notifyApp(message) {
   }
 }
 
-// 🔒 If user is on break, don't track idle (break ≠ idle)
-// We'll check this via /api/clock/today endpoint periodically
-if (pos) {
-  if (pos.x !== lastMouseX || pos.y !== lastMouseY) {
-    lastMouseX = pos.x;
-    lastMouseY = pos.y;
-    lastActiveTime = now;
+function checkMouseAndIdle() {
+  const now = Date.now();
+
+  // Use Electron's native system idle time — reliable, no PowerShell needed
+  // getSystemIdleTime() returns seconds since last keyboard/mouse input
+  let idleTime;
+  if (electronPowerMonitor) {
+    const sysIdleSecs = electronPowerMonitor.getSystemIdleTime();
+    idleTime = sysIdleSecs * 1000;
+    if (idleTime < IDLE_THRESHOLD) {
+      lastActiveTime = now;
+    }
+  } else {
+    idleTime = now - lastActiveTime;
   }
-}
-// Also check if any window is active = user is working
-try {
-  const { procName } = getActiveWindowInfo();
-  if (procName && procName !== 'Unknown' && procName !== 'Idle') {
-    lastActiveTime = now;
+
+  if (idleTime >= IDLE_THRESHOLD && !isIdle) {
+    isIdle = true;
+    idleStart = new Date(now - idleTime + IDLE_THRESHOLD);
+    console.log('💤 IDLE detected at', idleStart.toLocaleTimeString(), `(${Math.round(idleTime/60000)}min idle)`);
   }
-} catch (e) { }
-const idleTime = now - lastActiveTime;
 
-if (idleTime >= IDLE_THRESHOLD && !isIdle) {
-  isIdle = true;
-  idleStart = new Date(lastActiveTime + IDLE_THRESHOLD);
-  console.log('💤 IDLE at', idleStart.toLocaleTimeString());
-}
+  const STILL_WORKING_THRESHOLD = 30 * 60 * 1000;
+  if (idleTime >= STILL_WORKING_THRESHOLD && !stillWorkingAsked) {
+    stillWorkingAsked = true;
+    notifyApp({ type: 'still_working_check' });
+    console.log('🔔 Asking: Are you still working?');
+  }
+  if (idleTime < IDLE_THRESHOLD) {
+    stillWorkingAsked = false;
+  }
 
-// 🔔 "Are you still working?" - after 30 min idle, ask user
-const STILL_WORKING_THRESHOLD = 30 * 60 * 1000; // 30 min
-if (idleTime >= STILL_WORKING_THRESHOLD && !stillWorkingAsked) {
-  stillWorkingAsked = true;
-  notifyApp({ type: 'still_working_check' });
-  console.log('🔔 Asking: Are you still working?');
-}
-if (idleTime < IDLE_THRESHOLD) {
-  stillWorkingAsked = false;
-}
-
-// 🔔 Only notification - NO auto-actions
-if (idleTime >= BREAK_WARNING_THRESHOLD && !breakWarningShown) {
-  breakWarningShown = true;
-  notifyApp({
-    type: 'break_warning',
-    title: 'Time for a break?',
-    message: `You've been idle for 90 minutes. Consider taking a break.`,
-  });
-}
-
-if (idleTime < IDLE_THRESHOLD && isIdle) {
-  isIdle = false;
-  breakWarningShown = false;
-  const idleTo = new Date();
-  const seconds = Math.round((idleTo - idleStart) / 1000);
-  // 🔒 Only log if reasonable duration and not already logged
-  if (seconds > 30 && seconds < 4 * 60 * 60) { // max 4 hours per single log
-    idleBuffer.push({
-      idleFrom: idleStart.toISOString(),
-      idleTo: idleTo.toISOString(),
-      seconds
+  if (idleTime >= BREAK_WARNING_THRESHOLD && !breakWarningShown) {
+    breakWarningShown = true;
+    notifyApp({
+      type: 'break_warning',
+      title: 'Time for a break?',
+      message: `You've been idle for 90 minutes. Consider taking a break.`,
     });
   }
-  idleStart = null;
-  lastActiveTime = Date.now(); // Reset to prevent re-trigger
+
+  if (idleTime < IDLE_THRESHOLD && isIdle) {
+    isIdle = false;
+    breakWarningShown = false;
+    const idleTo = new Date();
+    const seconds = Math.round((idleTo - idleStart) / 1000);
+    if (seconds > 30 && seconds < 4 * 60 * 60) {
+      idleBuffer.push({
+        idleFrom: idleStart.toISOString(),
+        idleTo: idleTo.toISOString(),
+        seconds,
+      });
+      console.log(`📝 Idle logged: ${Math.round(seconds/60)}min (${idleStart.toLocaleTimeString()} → ${idleTo.toLocaleTimeString()})`);
+    }
+    idleStart = null;
+    lastActiveTime = now;
+  }
 }
-}
+
 
 // 🔒 SIMPLIFIED Power monitoring - no auto-actions
 function setupPowerMonitoring(electronApp, powerMonitor) {
@@ -292,7 +272,10 @@ function startTracking(baseUrl, win, electronApp, powerMonitor) {
   console.log('🚀 Tracking started:', baseUrl);
   backendUrl = baseUrl;
   mainWindow = win;
-  if (powerMonitor) setupPowerMonitoring(electronApp, powerMonitor);
+  if (powerMonitor) {
+    electronPowerMonitor = powerMonitor;
+    setupPowerMonitoring(electronApp, powerMonitor);
+  }
   mouseCheckInterval = setInterval(() => { checkMouseAndIdle(); }, 20000);
   trackingInterval = setInterval(() => {
     if (isIdle) return;

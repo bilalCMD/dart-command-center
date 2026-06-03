@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, session, powerMonitor, Notification } = require('electron');
 const path = require('path');
 const https = require('https');
+const fs = require('fs');
 const { autoUpdater } = require('electron-updater');
 const { startTracking, stopTracking, setSessionCookie } = require('./tracker/index');
 
@@ -9,7 +10,7 @@ let popupWindow;
 let tray;
 let currentCookie = null;
 let isLoggedIn = false;
-const BASE_URL = 'https://portal.dartwebsite.com';
+const BASE_URL = process.env.DART_DEV ? 'http://localhost:3000' : 'https://portal.dartwebsite.com';
 
 // 🔒 Single Instance Lock
 const gotTheLock = app.requestSingleInstanceLock();
@@ -43,15 +44,18 @@ autoUpdater.on('update-available', (info) => {
 });
 
 autoUpdater.on('update-downloaded', (info) => {
-  console.log('✅ Update downloaded:', info.version);
-  showUpdatePopup(info.version);
+  console.log('✅ Update downloaded:', info.version, '— auto-installing in 10s');
   if (Notification.isSupported()) {
     new Notification({
-      title: '✅ Update Ready!',
-      body: `Click "Install Now" in app to update to v${info.version}`,
+      title: '🔄 Dart is updating...',
+      body: `v${info.version} install ho rahi hai. App 10 seconds mein restart hogi.`,
       silent: false,
     }).show();
   }
+  // Auto-install after 10 seconds — no popup, no user action needed
+  setTimeout(() => {
+    autoUpdater.quitAndInstall(true, true); // silent=true, runAfter=true
+  }, 10000);
 });
 
 autoUpdater.on('error', (err) => {
@@ -261,6 +265,41 @@ function clockRequest(type, note) {
   });
 }
 
+function getSuspendFilePath() {
+  return path.join(app.getPath('userData'), 'dart_suspended_at.json');
+}
+
+// Send clock event with a custom past timestamp (for time-freeze recovery on resume)
+function clockRequestBackdated(type, note, timestamp) {
+  return new Promise((resolve) => {
+    if (!currentCookie) return resolve(null);
+    try {
+      const body = JSON.stringify({ type, note, timestamp });
+      const req = https.request({
+        hostname: 'portal.dartwebsite.com',
+        port: 443,
+        path: '/api/clock',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+          'Cookie': currentCookie,
+        },
+      }, (res) => {
+        let data = '';
+        res.on('data', d => data += d);
+        res.on('end', () => {
+          console.log(`Clock ${type} backdated to ${timestamp} — status:`, res.statusCode);
+          resolve(res.statusCode);
+        });
+      });
+      req.on('error', e => { console.error('Backdated clock error:', e.message); resolve(null); });
+      req.write(body);
+      req.end();
+    } catch (e) { resolve(null); }
+  });
+}
+
 // 🔥 AUTO CLOCK-OUT function
 async function autoClockOut(reason) {
   try {
@@ -313,7 +352,7 @@ function showClockInPopup() {
 
   popupWindow = new BrowserWindow({
     width: 340,
-    height: 280,
+    height: 340,
     resizable: false,
     alwaysOnTop: true,
     center: true,
@@ -424,7 +463,7 @@ function createMainWindow() {
         window.location.href = 'dart-install-update://now';
       };
     `).catch(() => { });
-    injectUpdateButton(updateState);
+    setTimeout(() => injectUpdateButton(updateState), 2000);
     // Trigger a check
     autoUpdater.checkForUpdates().catch(() => { });
   });
@@ -529,34 +568,69 @@ app.whenReady().then(() => {
     }
   }, 30000);
 
-  // 🔥 AUTO CLOCK-OUT: Laptop shutdown
-  powerMonitor.on('shutdown', async (e) => {
-    console.log('⛔ System shutdown - AUTO CLOCK OUT');
+  // 🔥 TIME FREEZE: Laptop shutdown — save time sync, try clock-out async
+  powerMonitor.on('shutdown', (e) => {
+    console.log('⛔ System shutdown - saving suspend time');
     if (isLoggedIn) {
-      await autoClockOut('laptop shutdown');
+      // Synchronous file write — survives even if network is down
+      try {
+        fs.writeFileSync(getSuspendFilePath(), JSON.stringify({ suspendedAt: new Date().toISOString() }));
+        console.log('💾 Shutdown time saved');
+      } catch (err) {
+        console.error('Failed to save shutdown time:', err);
+      }
+      // Best-effort async clock-out (may fail, that's OK — resume will fix it)
+      autoClockOut('laptop shutdown').catch(() => {});
     }
   });
 
-  // 🔥 AUTO CLOCK-OUT: Laptop close / sleep
-  powerMonitor.on('suspend', async () => {
-    console.log('💤 System suspended - AUTO CLOCK OUT');
+  // 🔥 TIME FREEZE: Laptop close / sleep — save time sync, try clock-out async
+  powerMonitor.on('suspend', () => {
+    console.log('💤 System suspended - saving suspend time');
     if (isLoggedIn) {
-      await autoClockOut('laptop closed/sleep');
+      // Synchronous file write — network may drop immediately, so save first
+      try {
+        fs.writeFileSync(getSuspendFilePath(), JSON.stringify({ suspendedAt: new Date().toISOString() }));
+        console.log('💾 Suspend time saved');
+      } catch (err) {
+        console.error('Failed to save suspend time:', err);
+      }
+      // Best-effort async clock-out (may fail, that's OK — resume will fix it)
+      autoClockOut('laptop closed/sleep').catch(() => {});
     }
   });
 
   // Screen lock - sirf log, NO auto clock-out (break/namaz ke liye lock karte hain)
-  powerMonitor.on('lock-screen', async () => {
+  powerMonitor.on('lock-screen', () => {
     console.log('🔒 Screen locked - no auto clock-out (might be break/namaz)');
   });
 
-  // ☀️ System resumed - show clock in popup
+  // ☀️ System resumed — restore frozen time, then show clock-in popup
   powerMonitor.on('resume', async () => {
     console.log('☀️ System resumed');
-    if (isLoggedIn) {
-      showClockInPopup();
+    if (!isLoggedIn) return;
+
+    const suspendFile = getSuspendFilePath();
+    try {
+      if (fs.existsSync(suspendFile)) {
+        const raw = fs.readFileSync(suspendFile, 'utf8');
+        const data = JSON.parse(raw);
+        fs.unlinkSync(suspendFile);
+
+        if (data.suspendedAt) {
+          console.log('📂 Restoring frozen time — inserting backdated CLOCK_OUT at', data.suspendedAt);
+          // Insert CLOCK_OUT at the exact moment laptop was closed
+          await clockRequestBackdated('CLOCK_OUT', 'Auto - laptop closed', data.suspendedAt);
+        }
+      }
+    } catch (err) {
+      console.error('Resume recovery error:', err);
+      try { fs.unlinkSync(suspendFile); } catch {}
     }
-  }, 3000);
+
+    // Show clock-in popup after network stabilizes
+    setTimeout(() => showClockInPopup(), 3000);
+  });
 });
 
 // 🔓 Screen unlocked - show clock in popup
@@ -624,7 +698,7 @@ setInterval(async () => {
     console.error('Status check error:', e);
   }
 }, 60 * 60 * 1000);
-});
+
 
 // 🔥 AUTO CLOCK-OUT: App quit (user closes app from tray)
 app.on('before-quit', async (e) => {

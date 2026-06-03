@@ -130,7 +130,7 @@ model LeaveBalance {
   user   User      @relation(fields: [userId], references: [id])
   type   LeaveType
   total  Int
-  used   Int       @default(0)
+  used   Float     @default(0)
   year   Int
 
   @@unique([userId, type, year])
@@ -143,6 +143,7 @@ model LeaveRequest {
   type       LeaveType
   fromDate   DateTime
   toDate     DateTime
+  isHalfDay  Boolean     @default(false)
   reason     String
   status     LeaveStatus @default(PENDING)
   approvedBy String?
