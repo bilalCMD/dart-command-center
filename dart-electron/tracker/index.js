@@ -1,4 +1,4 @@
-const { execSync } = require('child_process');
+const { exec } = require('child_process');
 const https = require('https');
 const http = require('http');
 
@@ -25,20 +25,24 @@ function setSessionCookie(cookie) {
   console.log('Session cookie set:', cookie ? 'YES' : 'NO');
 }
 
+// Async version — does NOT block the event loop
 function getActiveWindowInfo() {
-  try {
-    if (process.platform === 'win32') {
-      const result = execSync(
-        `powershell -NoProfile -NonInteractive -command "try { $hwnd = Add-Type -MemberDefinition '[DllImport(\\\"user32.dll\\\")] public static extern IntPtr GetForegroundWindow(); [DllImport(\\\"user32.dll\\\")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint p);' -Name U32 -Namespace W -PassThru; $h = [W.U32]::GetForegroundWindow(); $p = [uint32]0; [W.U32]::GetWindowThreadProcessId($h, [ref]$p) | Out-Null; $proc = Get-Process -Id $p -EA Stop; Write-Output ($proc.ProcessName + '||' + $proc.MainWindowTitle) } catch { Write-Output 'Unknown||Unknown' }"`,
-        { timeout: 4000, encoding: 'utf8' }
-      ).trim();
-      if (result && result.includes('||')) {
-        const idx = result.indexOf('||');
-        return { procName: result.substring(0, idx).trim(), title: result.substring(idx + 2).trim() };
+  return new Promise((resolve) => {
+    if (process.platform !== 'win32') return resolve({ procName: 'Unknown', title: 'Unknown' });
+    exec(
+      `powershell -NoProfile -NonInteractive -command "try { $hwnd = Add-Type -MemberDefinition '[DllImport(\\\"user32.dll\\\")] public static extern IntPtr GetForegroundWindow(); [DllImport(\\\"user32.dll\\\")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint p);' -Name U32 -Namespace W -PassThru; $h = [W.U32]::GetForegroundWindow(); $p = [uint32]0; [W.U32]::GetWindowThreadProcessId($h, [ref]$p) | Out-Null; $proc = Get-Process -Id $p -EA Stop; Write-Output ($proc.ProcessName + '||' + $proc.MainWindowTitle) } catch { Write-Output 'Unknown||Unknown' }"`,
+      { timeout: 4000 },
+      (err, stdout) => {
+        if (err || !stdout) return resolve({ procName: 'Unknown', title: 'Unknown' });
+        const result = stdout.trim();
+        if (result.includes('||')) {
+          const idx = result.indexOf('||');
+          return resolve({ procName: result.substring(0, idx).trim(), title: result.substring(idx + 2).trim() });
+        }
+        resolve({ procName: 'Unknown', title: 'Unknown' });
       }
-    }
-  } catch (e) { }
-  return { procName: 'Unknown', title: 'Unknown' };
+    );
+  });
 }
 
 function extractSiteFromTitle(windowTitle) {
@@ -276,22 +280,27 @@ function startTracking(baseUrl, win, electronApp, powerMonitor) {
     electronPowerMonitor = powerMonitor;
     setupPowerMonitoring(electronApp, powerMonitor);
   }
-  mouseCheckInterval = setInterval(() => { checkMouseAndIdle(); }, 20000);
-  trackingInterval = setInterval(() => {
+  // Idle check every 30 seconds (lightweight — uses native getSystemIdleTime)
+  mouseCheckInterval = setInterval(() => { checkMouseAndIdle(); }, 30000);
+
+  // Window tracking every 60 seconds (async — no event loop blocking)
+  trackingInterval = setInterval(async () => {
     if (isIdle) return;
-    const { procName, title } = getActiveWindowInfo();
+    const { procName, title } = await getActiveWindowInfo();
     const appName = getAppName(procName, title);
     if (appName && appName !== 'Unknown') {
       const isBrowser = ['Google Chrome', 'Firefox', 'Microsoft Edge', 'Brave'].includes(appName);
       if (isBrowser) {
         const site = extractSiteFromTitle(title);
-        activityBuffer.push({ appName, site: site || null, seconds: 10 });
+        activityBuffer.push({ appName, site: site || null, seconds: 60 });
       } else {
-        activityBuffer.push({ appName, site: null, seconds: 10 });
+        activityBuffer.push({ appName, site: null, seconds: 60 });
       }
     }
-  }, 20000);
-  flushInterval = setInterval(() => { flush(); }, 120000);
+  }, 60000);
+
+  // Flush every 3 minutes
+  flushInterval = setInterval(() => { flush(); }, 3 * 60 * 1000);
 }
 
 function stopTracking() {
