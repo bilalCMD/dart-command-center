@@ -304,7 +304,8 @@ export default function ActivityMonitorPage() {
                         <p style={{ fontSize: '11px', color: 'var(--subtle)', marginTop: '4px' }}>Make sure desktop app is running</p>
                       </div>
                     ) : otherApps.map((app: any) => {
-                      const pct = detail.totalSeconds > 0 ? Math.round((app.seconds / detail.totalSeconds) * 100) : 0;
+                      const totalAppSecs = otherApps.reduce((s: number, a: any) => s + a.seconds, 0);
+                      const pct = totalAppSecs > 0 ? Math.min(100, Math.round((app.seconds / totalAppSecs) * 100)) : 0;
                       const icon = APP_ICONS[app.appName] || '💼';
                       return (
                         <div key={app.appName} style={{ padding: '14px 20px', borderBottom: '1px solid #f8fafc' }}>

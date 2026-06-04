@@ -256,7 +256,10 @@ function setupPowerMonitoring(electronApp, powerMonitor) {
   });
 
   powerMonitor.on('lock-screen', async () => {
-    console.log('🔒 LOCKED - no auto-action');
+    console.log('🔒 LOCKED - pausing tracking');
+    isIdle = true;
+    idleStart = idleStart || new Date();
+    await flush();
   });
 
   powerMonitor.on('unlock-screen', async () => {
@@ -283,12 +286,14 @@ function startTracking(baseUrl, win, electronApp, powerMonitor) {
   // Idle check every 30 seconds (lightweight — uses native getSystemIdleTime)
   mouseCheckInterval = setInterval(() => { checkMouseAndIdle(); }, 30000);
 
+  const SKIP_APPS = new Set(['Idle', 'Lock App', 'LockApp', 'Windows Security', 'Unknown', 'Taskmgr', 'Task Manager']);
+
   // Window tracking every 60 seconds (async — no event loop blocking)
   trackingInterval = setInterval(async () => {
     if (isIdle) return;
     const { procName, title } = await getActiveWindowInfo();
     const appName = getAppName(procName, title);
-    if (appName && appName !== 'Unknown') {
+    if (appName && appName !== 'Unknown' && !SKIP_APPS.has(appName)) {
       const isBrowser = ['Google Chrome', 'Firefox', 'Microsoft Edge', 'Brave'].includes(appName);
       if (isBrowser) {
         const site = extractSiteFromTitle(title);
