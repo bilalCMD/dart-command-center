@@ -169,9 +169,11 @@ export async function POST(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const isCron = cronSecret && authHeader === `Bearer ${cronSecret}`;
 
+  let awardedById = 'auto-cron';
   if (!isCron) {
-    const { error } = await requireAdmin();
+    const { user, error } = await requireAdmin();
     if (error) return error;
+    awardedById = (user as any)?.id || 'admin';
   }
 
   try {
@@ -194,14 +196,14 @@ export async function POST(req: NextRequest) {
     // 🌟 Star Performer - Top 1 by KPI score
     const sorted = [...allStats].filter(s => s.kpiScore > 0).sort((a, b) => b.kpiScore - a.kpiScore);
     if (sorted.length > 0) {
-      const award = await awardBadge(sorted[0].userId, '🌟 Star Performer', user!.id);
+      const award = await awardBadge(sorted[0].userId, '🌟 Star Performer', awardedById);
       if (award) awardsGiven.push({ user: sorted[0].name, badge: '🌟 Star Performer', reason: `Highest KPI score: ${sorted[0].kpiScore.toFixed(1)}` });
     }
 
     // ⏰ Punctuality King - 0 late arrivals (worked at least 4 days)
     for (const stat of allStats) {
       if (stat.workingDays >= 4 && stat.lateDays === 0) {
-        const award = await awardBadge(stat.userId, '⏰ Punctuality King', user!.id);
+        const award = await awardBadge(stat.userId, '⏰ Punctuality King', awardedById);
         if (award) awardsGiven.push({ user: stat.name, badge: '⏰ Punctuality King', reason: 'Zero late arrivals this week' });
       }
     }
@@ -209,7 +211,7 @@ export async function POST(req: NextRequest) {
     // 🎯 EOD Champion - Submitted EOD all 5 days
     for (const stat of allStats) {
       if (stat.eodCount >= 5) {
-        const award = await awardBadge(stat.userId, '🎯 EOD Champion', user!.id);
+        const award = await awardBadge(stat.userId, '🎯 EOD Champion', awardedById);
         if (award) awardsGiven.push({ user: stat.name, badge: '🎯 EOD Champion', reason: `${stat.eodCount} EOD reports submitted` });
       }
     }
@@ -217,7 +219,7 @@ export async function POST(req: NextRequest) {
     // 🚀 Productivity Hero - 90%+ active time
     for (const stat of allStats) {
       if (stat.productivityRatio >= 0.9 && stat.totalActiveSeconds > 14400) { // At least 4 hours
-        const award = await awardBadge(stat.userId, '🚀 Productivity Hero', user!.id);
+        const award = await awardBadge(stat.userId, '🚀 Productivity Hero', awardedById);
         if (award) awardsGiven.push({ user: stat.name, badge: '🚀 Productivity Hero', reason: `${(stat.productivityRatio * 100).toFixed(0)}% active time` });
       }
     }
@@ -231,7 +233,7 @@ export async function POST(req: NextRequest) {
         stat.kpiScore > 0 &&
         stat.productivityRatio >= 0.85
       ) {
-        const award = await awardBadge(stat.userId, '💯 Perfect Week', user!.id);
+        const award = await awardBadge(stat.userId, '💯 Perfect Week', awardedById);
         if (award) awardsGiven.push({ user: stat.name, badge: '💯 Perfect Week', reason: 'All criteria met!' });
       }
     }
@@ -239,7 +241,7 @@ export async function POST(req: NextRequest) {
     // ☕ Disciplined - No long breaks
     for (const stat of allStats) {
       if (stat.workingDays >= 4 && stat.longBreaks === 0) {
-        const award = await awardBadge(stat.userId, '☕ Disciplined', user!.id);
+        const award = await awardBadge(stat.userId, '☕ Disciplined', awardedById);
         if (award) awardsGiven.push({ user: stat.name, badge: '☕ Disciplined', reason: 'Well-managed break times' });
       }
     }
@@ -259,7 +261,7 @@ export async function POST(req: NextRequest) {
           }
         });
         if (recentStars >= 3) {
-          const award = await awardBadge(stat.userId, '🔥 On Fire', user!.id);
+          const award = await awardBadge(stat.userId, '🔥 On Fire', awardedById);
           if (award) awardsGiven.push({ user: stat.name, badge: '🔥 On Fire', reason: 'Star Performer 3 weeks in a row!' });
         }
       }
