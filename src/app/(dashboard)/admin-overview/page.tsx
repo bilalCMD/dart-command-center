@@ -8,7 +8,7 @@ const fmtTime = (s: number) => {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 };
 
-const LATEST_VERSION = '1.0.9';
+const LATEST_VERSION = '1.1.0';
 
 export default function AdminOverview() {
   const [team, setTeam] = useState<any[]>([]);
