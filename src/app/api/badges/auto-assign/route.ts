@@ -36,10 +36,20 @@ interface UserStats {
 }
 
 async function calculateUserStats(userId: string, weekStart: Date, weekEnd: Date): Promise<UserStats> {
-  const user = await prisma.user.findUnique({ 
+  const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, name: true }
+    select: { id: true, name: true, shift: true }
   });
+
+  // Get employee custom start time or company default
+  const empSettings = await prisma.employeeSettings.findUnique({ where: { userId } });
+  const compSettings = await prisma.companySettings.findFirst();
+  const startTimeStr = empSettings?.workStartTime || compSettings?.workStartTime || '09:00';
+  const [startHour, startMin] = startTimeStr.split(':').map(Number);
+  // Grace period: 15 min
+  const graceMins = compSettings?.gracePeriodMins ?? 15;
+  const lateHour = startHour + Math.floor((startMin + graceMins) / 60);
+  const lateMin = (startMin + graceMins) % 60;
 
   // Get clock events
   const clockEvents = await prisma.clockEvent.findMany({
@@ -90,18 +100,22 @@ async function calculateUserStats(userId: string, weekStart: Date, weekEnd: Date
   // Count working days (CLOCK_IN events)
   const workingDaysSet = new Set<string>();
   let lateDays = 0;
-  
+  const PKT_OFFSET = 5 * 60; // PKT = UTC+5
+
   clockEvents.forEach(e => {
     if (e.type === 'CLOCK_IN') {
       const dateStr = e.timestamp.toISOString().split('T')[0];
       workingDaysSet.add(dateStr);
-      
-      // Check if late (after 9:30 AM)
-      const hour = e.timestamp.getHours();
-      const minute = e.timestamp.getMinutes();
-      if (hour > 9 || (hour === 9 && minute > 30)) {
-        lateDays++;
-      }
+
+      // Convert UTC to PKT
+      const pktMs = e.timestamp.getTime() + PKT_OFFSET * 60 * 1000;
+      const pktDate = new Date(pktMs);
+      const hour = pktDate.getUTCHours();
+      const minute = pktDate.getUTCMinutes();
+
+      // Mark late only if after their shift start + grace period
+      const isLate = hour > lateHour || (hour === lateHour && minute > lateMin);
+      if (isLate) lateDays++;
     }
   });
 
