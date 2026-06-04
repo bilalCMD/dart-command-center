@@ -32,6 +32,16 @@ export default function ActivityMonitorPage() {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'apps' | 'chrome'>('apps');
+  const [appVersions, setAppVersions] = useState<Record<string, string>>({});
+  const LATEST_VERSION = '1.0.9';
+
+  useEffect(() => {
+    fetch('/api/app-version').then(r => r.json()).then(d => {
+      const map: Record<string, string> = {};
+      for (const u of (d.users || [])) map[u.id] = u.appVersion || '';
+      setAppVersions(map);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => { fetchMembers(); }, [date]);
 
@@ -144,7 +154,7 @@ export default function ActivityMonitorPage() {
                     </div>
                   </div>
                   {activeMembers.map(m => (
-                    <MemberRow key={m.id} m={m} selected={selected} onSelect={selectMember} active={m.isOnline} />
+                    <MemberRow key={m.id} m={m} selected={selected} onSelect={selectMember} active={m.isOnline} version={appVersions[m.id]} latestVersion={LATEST_VERSION} />
                   ))}
                   {inactiveMembers.length > 0 && <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />}
                 </>
@@ -158,7 +168,7 @@ export default function ActivityMonitorPage() {
                     </div>
                   )}
                   {inactiveMembers.map(m => (
-                    <MemberRow key={m.id} m={m} selected={selected} onSelect={selectMember} active={false} />
+                    <MemberRow key={m.id} m={m} selected={selected} onSelect={selectMember} active={false} version={appVersions[m.id]} latestVersion={LATEST_VERSION} />
                   ))}
                 </>
               )}
@@ -374,7 +384,7 @@ export default function ActivityMonitorPage() {
   );
 }
 
-function MemberRow({ m, selected, onSelect, active }: { m: any; selected: any; onSelect: (m: any) => void; active: boolean }) {
+function MemberRow({ m, selected, onSelect, active, version, latestVersion }: { m: any; selected: any; onSelect: (m: any) => void; active: boolean; version?: string; latestVersion?: string }) {
   const isSelected = selected?.id === m.id;
   const onBreak = m.isOnBreak;
   const away = (m as any).isAway;
@@ -426,7 +436,14 @@ function MemberRow({ m, selected, onSelect, active }: { m: any; selected: any; o
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
-        <div style={{ fontSize: '10px', color: 'var(--muted)' }}>{m.role}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+          {version === latestVersion
+            ? <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '99px', background: '#dcfce7', color: '#16a34a' }}>✓ v{version}</span>
+            : version
+              ? <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '99px', background: '#fee2e2', color: '#ef4444' }}>↑ Update</span>
+              : <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '99px', background: '#f1f5f9', color: '#94a3b8' }}>No app</span>
+          }
+        </div>
       </div>
       <div style={{ flexShrink: 0 }}>
         {away ? (

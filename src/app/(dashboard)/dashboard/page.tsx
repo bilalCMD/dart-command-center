@@ -23,6 +23,7 @@ export default function DashboardPage() {
   const [eodData,             setEodData]             = useState<any>(null);
   const [earnedBadges,        setEarnedBadges]        = useState<any[]>([]);
   const [teamStats,           setTeamStats]           = useState<any>(null);
+  const [appVersions,         setAppVersions]         = useState<Record<string,string>>({});
   const [pendingLeavesCount,  setPendingLeavesCount]  = useState(0);
   const [todayEodCount,       setTodayEodCount]       = useState(0);
   const [teamView,            setTeamView]            = useState<'in' | 'out'>('in');
@@ -100,6 +101,14 @@ export default function DashboardPage() {
         .then(r => r.json())
         .then(d => setPendingLeavesCount(d.count || 0))
         .catch(console.error);
+
+      fetch('/api/app-version')
+        .then(r => r.json())
+        .then(d => {
+          const map: Record<string,string> = {};
+          for (const u of (d.users||[])) map[u.id] = u.appVersion || '';
+          setAppVersions(map);
+        }).catch(console.error);
     }
 
     setLoading(false);
@@ -150,9 +159,9 @@ export default function DashboardPage() {
               accent="#10b981"
             />
             <StatCard
-              label="My Hours Today"
-              value={fmtTime(clockData?.totalSeconds || 0)}
-              sub={clockData?.isClockedIn ? '🟢 Currently in' : '🔴 Clocked out'}
+              label="Avg Hours Today"
+              value={fmtTime(teamStats?.team?.length ? Math.round(teamStats.team.filter((m:any)=>m.isClockedIn).reduce((s:number,m:any)=>s+m.totalSeconds,0) / Math.max(teamStats.team.filter((m:any)=>m.isClockedIn).length,1)) : 0)}
+              sub={`${teamStats?.team?.filter((m:any)=>m.isClockedIn).length||0} members active`}
               accent="#B71CED"
             />
             <a href="/leaves" className="no-underline">
@@ -205,7 +214,15 @@ export default function DashboardPage() {
                         {member.avatar || member.name?.slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-semibold truncate">{member.name}</div>
+                        <div className="text-xs font-semibold truncate flex items-center gap-1.5">
+                          {member.name}
+                          {appVersions[member.userId] === '1.0.9'
+                            ? <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-green-500/10 text-green-500">✓ Updated</span>
+                            : appVersions[member.userId]
+                              ? <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-red-500/10 text-red-400">↑ Update</span>
+                              : <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-gray-500/10 text-gray-400">No app</span>
+                          }
+                        </div>
                         <div className={`text-[10px] font-bold ${member.isClockedIn ? 'text-green-400' : 'text-[var(--muted)]'}`}>
                           {member.isClockedIn ? '🟢 In' : '🔴 Out'} · {fmtTime(member.totalSeconds || 0)}
                         </div>
