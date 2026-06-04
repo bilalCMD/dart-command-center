@@ -580,9 +580,26 @@ app.whenReady().then(() => {
       clearInterval(tryStartTracker);
       console.log('✅ Cookie ready, starting tracker...');
       startTracking(BASE_URL, mainWindow, app, powerMonitor);
+
       // Report app version to server
       const version = app.getVersion();
       https.request({ hostname: 'portal.dartwebsite.com', port: 443, path: '/api/app-version', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(JSON.stringify({ version })), 'Cookie': currentCookie } }, () => {}).on('error', () => {}).end(JSON.stringify({ version }));
+
+      // 🔄 Boot recovery: check if shutdown/suspend file exists (wasn't handled by resume)
+      const suspendFile = getSuspendFilePath();
+      if (fs.existsSync(suspendFile)) {
+        try {
+          const data = JSON.parse(fs.readFileSync(suspendFile, 'utf8'));
+          fs.unlinkSync(suspendFile);
+          if (data.suspendedAt) {
+            console.log('🔄 Boot recovery: inserting backdated CLOCK_OUT at', data.suspendedAt);
+            await clockRequestBackdated('CLOCK_OUT', 'Auto - shutdown recovery', data.suspendedAt);
+          }
+        } catch (e) {
+          console.error('Boot recovery error:', e);
+          try { fs.unlinkSync(suspendFile); } catch {}
+        }
+      }
     }
   }, 3000);
 
