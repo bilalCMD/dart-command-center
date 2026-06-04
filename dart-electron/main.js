@@ -656,31 +656,41 @@ app.whenReady().then(() => {
     console.log('🔒 Screen locked - no auto clock-out (might be break/namaz)');
   });
 
-  // ☀️ System resumed — restore frozen time, then show clock-in popup
+  // ☀️ System resumed — restore frozen time with network retry
   powerMonitor.on('resume', async () => {
     console.log('☀️ System resumed');
     if (!isLoggedIn) return;
 
     const suspendFile = getSuspendFilePath();
-    try {
-      if (fs.existsSync(suspendFile)) {
-        const raw = fs.readFileSync(suspendFile, 'utf8');
-        const data = JSON.parse(raw);
-        fs.unlinkSync(suspendFile);
-
+    if (fs.existsSync(suspendFile)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(suspendFile, 'utf8'));
         if (data.suspendedAt) {
-          console.log('📂 Restoring frozen time — inserting backdated CLOCK_OUT at', data.suspendedAt);
-          // Insert CLOCK_OUT at the exact moment laptop was closed
-          await clockRequestBackdated('CLOCK_OUT', 'Auto - laptop closed', data.suspendedAt);
+          console.log('📂 Found suspend file — will retry clock-out until network ready');
+          // Retry up to 10 times every 8 seconds (80 seconds total)
+          let success = false;
+          for (let i = 0; i < 10; i++) {
+            await new Promise(r => setTimeout(r, i === 0 ? 5000 : 8000));
+            const status = await clockRequestBackdated('CLOCK_OUT', 'Auto - laptop closed', data.suspendedAt);
+            if (status === 200 || status === 400) { // 400 = already clocked out
+              success = true;
+              console.log(`✅ Resume clock-out success on attempt ${i + 1}`);
+              break;
+            }
+            console.log(`⏳ Retry ${i + 1}/10 — network not ready yet`);
+          }
+          if (success) {
+            try { fs.unlinkSync(suspendFile); } catch {}
+          }
+          // File stays if all retries fail — next boot will try again
         }
+      } catch (err) {
+        console.error('Resume recovery error:', err);
       }
-    } catch (err) {
-      console.error('Resume recovery error:', err);
-      try { fs.unlinkSync(suspendFile); } catch {}
     }
 
     // Show clock-in popup after network stabilizes
-    setTimeout(() => showClockInPopup(), 3000);
+    setTimeout(() => showClockInPopup(), 6000);
   });
 });
 

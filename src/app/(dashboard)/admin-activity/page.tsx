@@ -438,9 +438,11 @@ function MemberRow({ m, selected, onSelect, active, version, latestVersion }: { 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-          {version === latestVersion
-            ? <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '99px', background: '#dcfce7', color: '#16a34a' }}>✓ Updated</span>
-            : <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '99px', background: '#fee2e2', color: '#ef4444' }}>↑ Update Now</span>
+          {version === 'mac'
+            ? <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '99px', background: '#fef9c3', color: '#a16207' }}>🍎 MacBook</span>
+            : version === latestVersion
+              ? <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '99px', background: '#dcfce7', color: '#16a34a' }}>✓ Updated</span>
+              : <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '99px', background: '#fee2e2', color: '#ef4444' }}>↑ Update Now</span>
           }
         </div>
       </div>
