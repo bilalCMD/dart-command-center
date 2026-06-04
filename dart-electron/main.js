@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, session, powerMoni
 const path = require('path');
 const https = require('https');
 const fs = require('fs');
+const { execSync } = require('child_process');
 const { autoUpdater } = require('electron-updater');
 const { startTracking, stopTracking, setSessionCookie } = require('./tracker/index');
 
@@ -269,6 +270,25 @@ function getSuspendFilePath() {
   return path.join(app.getPath('userData'), 'dart_suspended_at.json');
 }
 
+// Synchronous clock-out using curl — fires BEFORE network drops on suspend/shutdown
+function clockOutSync(note) {
+  if (!currentCookie) return false;
+  try {
+    const tmpFile = path.join(app.getPath('temp'), 'dart_co.json');
+    fs.writeFileSync(tmpFile, JSON.stringify({ type: 'CLOCK_OUT', note }));
+    execSync(
+      `curl -s -X POST "https://portal.dartwebsite.com/api/clock" -H "Content-Type: application/json" -H "Cookie: ${currentCookie}" -d @"${tmpFile}" --max-time 4 --connect-timeout 3`,
+      { timeout: 5000 }
+    );
+    try { fs.unlinkSync(tmpFile); } catch {}
+    console.log('✅ Sync clock-out sent:', note);
+    return true;
+  } catch (e) {
+    console.log('Sync clock-out failed (file backup will handle on resume):', e.message);
+    return false;
+  }
+}
+
 // Send clock event with a custom past timestamp (for time-freeze recovery on resume)
 function clockRequestBackdated(type, note, timestamp) {
   return new Promise((resolve) => {
@@ -487,10 +507,19 @@ function createMainWindow() {
   mainWindow.on('close', (e) => {
     e.preventDefault();
     mainWindow.hide();
+
+    // Clock-out when window is closed (time freeze)
+    if (isLoggedIn) {
+      const suspendedAt = new Date().toISOString();
+      try { fs.writeFileSync(getSuspendFilePath(), JSON.stringify({ suspendedAt })); } catch {}
+      const ok = clockOutSync('Auto - app closed');
+      if (ok) { try { fs.unlinkSync(getSuspendFilePath()); } catch {} }
+    }
+
     if (Notification.isSupported()) {
       new Notification({
-        title: 'Dart still running',
-        body: 'App is minimized to tray. Use tray icon to quit.',
+        title: 'Dart - Clocked Out',
+        body: 'Clocked out. App tray mein chal raha hai. Clock in ke liye tray icon click karo.',
         silent: true,
       }).show();
     }
@@ -510,7 +539,11 @@ function createTray() {
   ]);
   tray.setToolTip('Dart Command Center');
   tray.setContextMenu(menu);
-  tray.on('click', () => mainWindow.show());
+  tray.on('click', () => {
+    mainWindow.show();
+    // Show clock-in popup if user was clocked out when they closed the window
+    setTimeout(() => { if (isLoggedIn) showClockInPopup(); }, 1000);
+  });
 }
 
 app.commandLine.appendSwitch('disk-cache-size', '104857600');
@@ -568,36 +601,34 @@ app.whenReady().then(() => {
     }
   }, 30000);
 
-  // 🔥 TIME FREEZE: Laptop shutdown — save time sync, try clock-out async
-  powerMonitor.on('shutdown', (e) => {
-    console.log('⛔ System shutdown - saving suspend time');
-    if (isLoggedIn) {
-      // Synchronous file write — survives even if network is down
-      try {
-        fs.writeFileSync(getSuspendFilePath(), JSON.stringify({ suspendedAt: new Date().toISOString() }));
-        console.log('💾 Shutdown time saved');
-      } catch (err) {
-        console.error('Failed to save shutdown time:', err);
-      }
-      // Best-effort async clock-out (may fail, that's OK — resume will fix it)
-      autoClockOut('laptop shutdown').catch(() => {});
+  // ⛔ Laptop shutdown — sync clock-out + save fallback time
+  powerMonitor.on('shutdown', () => {
+    console.log('⛔ System shutdown');
+    if (!isLoggedIn) return;
+    const suspendedAt = new Date().toISOString();
+    try { fs.writeFileSync(getSuspendFilePath(), JSON.stringify({ suspendedAt })); } catch {}
+    // Sync clock-out — fires before shutdown kills the process
+    const ok = clockOutSync('Auto - laptop shutdown');
+    if (ok) {
+      // Already clocked out — no need for resume to fix
+      try { fs.unlinkSync(getSuspendFilePath()); } catch {}
     }
   });
 
-  // 🔥 TIME FREEZE: Laptop close / sleep — save time sync, try clock-out async
+  // 💤 Laptop close / sleep — sync clock-out + save fallback time
   powerMonitor.on('suspend', () => {
-    console.log('💤 System suspended - saving suspend time');
-    if (isLoggedIn) {
-      // Synchronous file write — network may drop immediately, so save first
-      try {
-        fs.writeFileSync(getSuspendFilePath(), JSON.stringify({ suspendedAt: new Date().toISOString() }));
-        console.log('💾 Suspend time saved');
-      } catch (err) {
-        console.error('Failed to save suspend time:', err);
-      }
-      // Best-effort async clock-out (may fail, that's OK — resume will fix it)
-      autoClockOut('laptop closed/sleep').catch(() => {});
+    console.log('💤 System suspended');
+    if (!isLoggedIn) return;
+    const suspendedAt = new Date().toISOString();
+    // Save time FIRST (sync, guaranteed) — used as fallback if network drops
+    try { fs.writeFileSync(getSuspendFilePath(), JSON.stringify({ suspendedAt })); } catch {}
+    // Sync clock-out attempt — fires in ~200ms before network drops
+    const ok = clockOutSync('Auto - laptop closed');
+    if (ok) {
+      // Sync succeeded — delete file so resume doesn't double clock-out
+      try { fs.unlinkSync(getSuspendFilePath()); } catch {}
     }
+    // If ok=false: file stays → resume will insert backdated CLOCK_OUT
   });
 
   // Screen lock - sirf log, NO auto clock-out (break/namaz ke liye lock karte hain)

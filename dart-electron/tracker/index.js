@@ -17,7 +17,7 @@ let mainWindow = null;
 let backendUrl = null;
 let electronPowerMonitor = null; // set via startTracking, used for getSystemIdleTime()
 
-const IDLE_THRESHOLD = 15 * 60 * 1000;           // 15 min
+const IDLE_THRESHOLD = 5 * 60 * 1000;            // 5 min idle detection
 const BREAK_WARNING_THRESHOLD = 90 * 60 * 1000;  // 90 min - notification only
 
 function setSessionCookie(cookie) {

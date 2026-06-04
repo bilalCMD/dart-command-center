@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/session';
 
@@ -163,9 +163,16 @@ async function awardBadge(userId: string, badgeName: string, awardedBy: string) 
   });
 }
 
-export async function POST() {
-  const { user, error } = await requireAdmin();
-  if (error) return error;
+export async function POST(req: NextRequest) {
+  // Allow either admin session OR valid CRON_SECRET (for Vercel Cron)
+  const authHeader = req.headers.get('authorization');
+  const cronSecret = process.env.CRON_SECRET;
+  const isCron = cronSecret && authHeader === `Bearer ${cronSecret}`;
+
+  if (!isCron) {
+    const { error } = await requireAdmin();
+    if (error) return error;
+  }
 
   try {
     const weekStart = getWeekStart();
