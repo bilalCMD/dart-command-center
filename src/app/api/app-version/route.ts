@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   if ((user as any).role !== 'ADMIN') return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   try {
     const users = await prisma.user.findMany({
-      where: { isActive: true, role: 'MEMBER' },
+      where: { isActive: true },
       select: { id: true, name: true, appVersion: true, appVersionAt: true },
       orderBy: { name: 'asc' },
     });
