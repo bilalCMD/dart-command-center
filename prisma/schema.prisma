@@ -33,6 +33,8 @@ model User {
   activeSessionId   String?
   activeDeviceInfo  String?
   lastSessionCheck  DateTime?
+  appVersion        String?
+  appVersionAt      DateTime?
 
 
   // Relations

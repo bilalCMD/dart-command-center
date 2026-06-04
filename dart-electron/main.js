@@ -580,6 +580,9 @@ app.whenReady().then(() => {
       clearInterval(tryStartTracker);
       console.log('✅ Cookie ready, starting tracker...');
       startTracking(BASE_URL, mainWindow, app, powerMonitor);
+      // Report app version to server
+      const version = app.getVersion();
+      https.request({ hostname: 'portal.dartwebsite.com', port: 443, path: '/api/app-version', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(JSON.stringify({ version })), 'Cookie': currentCookie } }, () => {}).on('error', () => {}).end(JSON.stringify({ version }));
     }
   }, 3000);
 

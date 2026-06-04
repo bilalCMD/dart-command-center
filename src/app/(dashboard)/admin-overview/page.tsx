@@ -8,10 +8,13 @@ const fmtTime = (s: number) => {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 };
 
+const LATEST_VERSION = '1.0.9';
+
 export default function AdminOverview() {
   const [team, setTeam] = useState<any[]>([]);
   const [pendingLeaves, setPendingLeaves] = useState(0);
   const [eodToday, setEodToday] = useState(0);
+  const [versions, setVersions] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,10 +22,14 @@ export default function AdminOverview() {
       fetch('/api/clock/team').then(r => r.json()),
       fetch('/api/leaves/pending').then(r => r.json()),
       fetch('/api/eod?date=' + new Date().toISOString().split('T')[0]).then(r => r.json()),
-    ]).then(([clockData, leavesData, eodData]) => {
+      fetch('/api/app-version').then(r => r.json()),
+    ]).then(([clockData, leavesData, eodData, versionData]) => {
       setTeam(clockData.team || []);
       setPendingLeaves(leavesData.count || 0);
       setEodToday((eodData.reports || []).length);
+      const vMap: Record<string, string> = {};
+      for (const u of (versionData.users || [])) vMap[u.id] = u.appVersion || '';
+      setVersions(vMap);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -83,7 +90,16 @@ export default function AdminOverview() {
                     </div>
                     <span className="text-[12px] font-medium text-[var(--text)]">{u.name}</span>
                   </div>
-                  <span className="text-[11px] text-[var(--muted)]">{fmtTime(u.totalSeconds)}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-[var(--muted)]">{fmtTime(u.totalSeconds)}</span>
+                    {versions[u.userId] ? (
+                      versions[u.userId] === LATEST_VERSION
+                        ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/10 text-green-500">v{versions[u.userId]} ✓</span>
+                        : <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">v{versions[u.userId]} ↑ Update</span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-400">No app</span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

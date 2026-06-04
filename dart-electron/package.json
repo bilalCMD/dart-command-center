@@ -1,6 +1,6 @@
 {
   "name": "dart-electron",
-  "version": "1.0.10",
+  "version": "1.0.9",
   "description": "Dart Command Center Desktop App",
   "main": "main.js",
   "author": {
@@ -45,32 +45,6 @@
       "shortcutName": "Dart Command Center",
       "runAfterFinish": true
     },
-    "extraResources": [
-      {
-        "from": "../.next",
-        "to": "app/.next"
-      },
-      {
-        "from": "../node_modules",
-        "to": "app/node_modules"
-      },
-      {
-        "from": "../package.json",
-        "to": "app/package.json"
-      },
-      {
-        "from": "../next.config.js",
-        "to": "app/next.config.js"
-      },
-      {
-        "from": "../.env",
-        "to": "app/.env"
-      },
-      {
-        "from": "../prisma",
-        "to": "app/prisma"
-      }
-    ],
     "files": [
       "main.js",
       "preload.js",
