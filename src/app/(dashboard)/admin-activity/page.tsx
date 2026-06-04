@@ -33,7 +33,7 @@ export default function ActivityMonitorPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'apps' | 'chrome'>('apps');
   const [appVersions, setAppVersions] = useState<Record<string, string>>({});
-  const LATEST_VERSION = '1.1.0';
+  const LATEST_VERSION = '1.1.1';
 
   useEffect(() => {
     fetch('/api/app-version').then(r => r.json()).then(d => {

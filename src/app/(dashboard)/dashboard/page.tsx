@@ -216,7 +216,7 @@ export default function DashboardPage() {
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-semibold truncate flex items-center gap-1.5">
                           {member.name}
-                          {appVersions[member.userId] === '1.0.9'
+                          {appVersions[member.userId] === '1.1.1'
                             ? <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-green-500/10 text-green-500">✓ Updated</span>
                             : <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-red-500/10 text-red-400">↑ Update Now</span>
                           }
