@@ -439,7 +439,7 @@ function MemberRow({ m, selected, onSelect, active, version, latestVersion }: { 
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
           {version === latestVersion
             ? <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '99px', background: '#dcfce7', color: '#16a34a' }}>✓ Updated</span>
-            : <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '99px', background: '#fee2e2', color: '#ef4444' }}>↑ Update karo</span>
+            : <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '99px', background: '#fee2e2', color: '#ef4444' }}>↑ Update Now</span>
           }
         </div>
       </div>
