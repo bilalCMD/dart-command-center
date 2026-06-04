@@ -92,11 +92,10 @@ export default function AdminOverview() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] text-[var(--muted)]">{fmtTime(u.totalSeconds)}</span>
-                    {versions[u.userId] && (
-                      versions[u.userId] === LATEST_VERSION
-                        ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/10 text-green-500">✓ Updated</span>
-                        : <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">↑ Update</span>
-                    )}
+                    {versions[u.userId] === LATEST_VERSION
+                      ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/10 text-green-500">✓ Updated</span>
+                      : <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">↑ Update karo</span>
+                    }
                   </div>
                 </div>
               ))}

@@ -218,9 +218,7 @@ export default function DashboardPage() {
                           {member.name}
                           {appVersions[member.userId] === '1.0.9'
                             ? <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-green-500/10 text-green-500">✓ Updated</span>
-                            : appVersions[member.userId]
-                              ? <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-red-500/10 text-red-400">↑ Update</span>
-                              : null
+                            : <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-red-500/10 text-red-400">↑ Update karo</span>
                           }
                         </div>
                         <div className={`text-[10px] font-bold ${member.isClockedIn ? 'text-green-400' : 'text-[var(--muted)]'}`}>

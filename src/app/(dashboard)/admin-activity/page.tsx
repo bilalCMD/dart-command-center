@@ -436,14 +436,12 @@ function MemberRow({ m, selected, onSelect, active, version, latestVersion }: { 
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
-        {version && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-            {version === latestVersion
-              ? <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '99px', background: '#dcfce7', color: '#16a34a' }}>✓ v{version}</span>
-              : <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '99px', background: '#fee2e2', color: '#ef4444' }}>↑ Update needed</span>
-            }
-          </div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+          {version === latestVersion
+            ? <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '99px', background: '#dcfce7', color: '#16a34a' }}>✓ Updated</span>
+            : <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '99px', background: '#fee2e2', color: '#ef4444' }}>↑ Update karo</span>
+          }
+        </div>
       </div>
       <div style={{ flexShrink: 0 }}>
         {away ? (
