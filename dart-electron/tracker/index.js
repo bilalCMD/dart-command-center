@@ -16,6 +16,7 @@ let sessionCookie = null;
 let mainWindow = null;
 let backendUrl = null;
 let electronPowerMonitor = null; // set via startTracking, used for getSystemIdleTime()
+let isUserClockedIn = false; // only track when clocked in
 
 const IDLE_THRESHOLD = 5 * 60 * 1000;            // 5 min idle detection
 const BREAK_WARNING_THRESHOLD = 90 * 60 * 1000;  // 90 min - notification only
@@ -23,6 +24,11 @@ const BREAK_WARNING_THRESHOLD = 90 * 60 * 1000;  // 90 min - notification only
 function setSessionCookie(cookie) {
   sessionCookie = cookie;
   console.log('Session cookie set:', cookie ? 'YES' : 'NO');
+}
+
+function setClockStatus(clockedIn) {
+  isUserClockedIn = clockedIn;
+  console.log('Clock status:', clockedIn ? 'CLOCKED IN' : 'CLOCKED OUT');
 }
 
 // Async version — does NOT block the event loop
@@ -290,7 +296,7 @@ function startTracking(baseUrl, win, electronApp, powerMonitor) {
 
   // Window tracking every 60 seconds (async — no event loop blocking)
   trackingInterval = setInterval(async () => {
-    if (isIdle) return;
+    if (isIdle || !isUserClockedIn) return;
     const { procName, title } = await getActiveWindowInfo();
     const appName = getAppName(procName, title);
     if (appName && appName !== 'Unknown' && !SKIP_APPS.has(appName)) {
@@ -315,4 +321,4 @@ function stopTracking() {
   console.log('Tracking stopped');
 }
 
-module.exports = { startTracking, stopTracking, setSessionCookie };
+module.exports = { startTracking, stopTracking, setSessionCookie, setClockStatus };

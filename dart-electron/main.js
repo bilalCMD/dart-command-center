@@ -4,7 +4,7 @@ const https = require('https');
 const fs = require('fs');
 const { execSync } = require('child_process');
 const { autoUpdater } = require('electron-updater');
-const { startTracking, stopTracking, setSessionCookie } = require('./tracker/index');
+const { startTracking, stopTracking, setSessionCookie, setClockStatus } = require('./tracker/index');
 
 let mainWindow;
 let popupWindow;
@@ -256,6 +256,11 @@ function clockRequest(type, note) {
         res.on('data', d => data += d);
         res.on('end', () => {
           console.log(`Clock ${type} status:`, res.statusCode);
+          // Update tracker clock status
+          if (res.statusCode === 200) {
+            if (type === 'CLOCK_IN') setClockStatus(true);
+            else if (type === 'CLOCK_OUT') setClockStatus(false);
+          }
           resolve(res.statusCode);
         });
       });
@@ -580,6 +585,12 @@ app.whenReady().then(() => {
       clearInterval(tryStartTracker);
       console.log('✅ Cookie ready, starting tracker...');
       startTracking(BASE_URL, mainWindow, app, powerMonitor);
+
+      // Check if already clocked in (on app start)
+      https.request({ hostname: 'portal.dartwebsite.com', port: 443, path: '/api/clock/today', method: 'GET', headers: { 'Cookie': currentCookie } }, (res) => {
+        let d = ''; res.on('data', c => d += c);
+        res.on('end', () => { try { const j = JSON.parse(d); setClockStatus(!!j.isClockedIn); } catch {} });
+      }).on('error', () => {}).end();
 
       // Report app version to server
       const version = app.getVersion();
