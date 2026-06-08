@@ -26,49 +26,73 @@ export async function POST(req: NextRequest) {
     }
 
     if (idleLogs?.length) {
+      // 🔒 Fetch today's BREAK/AWAY periods — idle DURING break must NOT count
+      const dayStart = new Date(dateKey);
+      const dayEnd = new Date(dateKey); dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+      const events = await prisma.clockEvent.findMany({
+        where: { userId: u.id, timestamp: { gte: dayStart, lt: dayEnd } },
+        orderBy: { timestamp: 'asc' },
+        select: { type: true, timestamp: true },
+      });
+      // Build break/away intervals (in ms)
+      const pauseIntervals: { start: number; end: number }[] = [];
+      let pStart: number | null = null;
+      for (const e of events) {
+        if (e.type === 'BREAK_START' || e.type === 'AWAY_START') pStart = e.timestamp.getTime();
+        else if ((e.type === 'BREAK_END' || e.type === 'AWAY_END') && pStart !== null) {
+          pauseIntervals.push({ start: pStart, end: e.timestamp.getTime() });
+          pStart = null;
+        }
+      }
+      if (pStart !== null) pauseIntervals.push({ start: pStart, end: Date.now() }); // still on break
+
+      // Subtract break/away from an idle interval → returns remaining clean sub-intervals
+      const subtractPauses = (from: number, to: number): { from: number; to: number }[] => {
+        let segments = [{ from, to }];
+        for (const p of pauseIntervals) {
+          const next: { from: number; to: number }[] = [];
+          for (const seg of segments) {
+            if (p.end <= seg.from || p.start >= seg.to) { next.push(seg); continue; }
+            if (p.start > seg.from) next.push({ from: seg.from, to: Math.max(seg.from, p.start) });
+            if (p.end < seg.to) next.push({ from: Math.min(seg.to, p.end), to: seg.to });
+          }
+          segments = next;
+        }
+        return segments;
+      };
+
       for (const idle of idleLogs) {
         const idleFromDate = new Date(idle.idleFrom);
         const idleToDate = new Date(idle.idleTo);
-        
-        // 🔒 STRONG dedup: check if overlapping idle log exists for this user
-        const existing = await prisma.idleLog.findFirst({
-          where: {
-            userId: u.id,
-            OR: [
-              {
-                // Same idleFrom within 2 minutes window
-                idleFrom: {
-                  gte: new Date(idleFromDate.getTime() - 120000),
-                  lte: new Date(idleFromDate.getTime() + 120000),
-                },
-              },
-              {
-                // Or overlapping range
-                AND: [
-                  { idleFrom: { lte: idleToDate } },
-                  { idleTo: { gte: idleFromDate } },
-                ]
-              }
-            ]
-          },
-        });
-        
-        if (!existing) {
-          try {
-            await prisma.idleLog.create({ 
-              data: { 
-                userId: u.id, 
-                idleFrom: idleFromDate, 
-                idleTo: idleToDate, 
-                seconds: idle.seconds 
-              } 
-            });
-          } catch (e: any) {
-            // Constraint violation - silently skip
-            console.log('⏭️ Skipped duplicate (DB constraint) for user:', u.id);
+
+        // ✂️ Remove any portion that overlaps a break/away period
+        const cleanSegments = subtractPauses(idleFromDate.getTime(), idleToDate.getTime());
+
+        for (const seg of cleanSegments) {
+          const segSeconds = Math.round((seg.to - seg.from) / 1000);
+          if (segSeconds < 30) continue; // ignore tiny leftovers
+
+          const segFrom = new Date(seg.from);
+          const segTo = new Date(seg.to);
+
+          // 🔒 dedup: check overlapping idle log exists
+          const existing = await prisma.idleLog.findFirst({
+            where: {
+              userId: u.id,
+              OR: [
+                { idleFrom: { gte: new Date(seg.from - 120000), lte: new Date(seg.from + 120000) } },
+                { AND: [{ idleFrom: { lte: segTo } }, { idleTo: { gte: segFrom } }] },
+              ],
+            },
+          });
+
+          if (!existing) {
+            try {
+              await prisma.idleLog.create({
+                data: { userId: u.id, idleFrom: segFrom, idleTo: segTo, seconds: segSeconds },
+              });
+            } catch { /* constraint — skip */ }
           }
-        } else {
-          console.log('⏭️ Skipped duplicate idle log for user:', u.id);
         }
       }
     }

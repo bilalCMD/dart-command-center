@@ -44,7 +44,7 @@ export default function ActivityPage() {
       setMyStatus(idle >= IDLE_THRESHOLD ? 'idle' : 'active');
     }, 30000);
 
-    // Report status every 2 minutes
+    // Report status every 5 minutes (was 2 min — reduce server load)
     reportTimerRef.current = setInterval(async () => {
       const idle = Math.floor((Date.now() - lastActivityRef.current) / 1000);
       const status = idle >= IDLE_THRESHOLD ? 'idle' : 'active';
@@ -57,7 +57,7 @@ export default function ActivityPage() {
       } catch (e) {
         console.error(e);
       }
-    }, 2 * 60 * 1000);
+    }, 5 * 60 * 1000);
 
     return () => {
       window.removeEventListener('mousemove', resetIdle);
@@ -87,7 +87,7 @@ export default function ActivityPage() {
   useEffect(() => {
     if (isAdmin) {
       fetchTeam();
-      const interval = setInterval(fetchTeam, 60000); // Auto-refresh every 60s
+      const interval = setInterval(fetchTeam, 180000); // Auto-refresh every 3 min (was 60s)
       return () => clearInterval(interval);
     } else {
       setLoading(false);

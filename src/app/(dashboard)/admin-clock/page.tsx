@@ -30,7 +30,7 @@ export default function AdminClock() {
 
   useEffect(() => {
     fetchTeam();
-    const interval = setInterval(fetchTeam, 60000); // refresh every minute
+    const interval = setInterval(fetchTeam, 180000); // refresh every 3 min (was 60s)
     return () => clearInterval(interval);
   }, []);
 

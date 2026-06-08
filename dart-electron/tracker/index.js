@@ -310,8 +310,8 @@ function startTracking(baseUrl, win, electronApp, powerMonitor) {
     }
   }, 60000);
 
-  // Flush every 3 minutes
-  flushInterval = setInterval(() => { flush(); }, 3 * 60 * 1000);
+  // Flush every 5 minutes (was 3 — reduce server invocations)
+  flushInterval = setInterval(() => { flush(); }, 5 * 60 * 1000);
 }
 
 function stopTracking() {
