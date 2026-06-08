@@ -37,41 +37,52 @@ export async function GET(req: NextRequest) {
     });
 
     const employees = users.map((user) => {
-      // Group events by date
-      const byDate: Record<string, typeof user.clockEvents> = {};
+      // 🌙 Pair CLOCK_IN → CLOCK_OUT across the FULL event list first.
+      // This handles night shifts where clock-out is on the next calendar day.
+      type Sess = { clockIn: Date; clockOut: Date | null; duration: number };
+      const allSessions: Sess[] = [];
+      let activeSince: Date | null = null;
+
       for (const e of user.clockEvents) {
-        const key = e.timestamp.toISOString().split('T')[0];
-        if (!byDate[key]) byDate[key] = [];
-        byDate[key].push(e);
+        if (e.type === 'CLOCK_IN') {
+          // If a previous session was left open (orphan clock-in), close it at this point
+          if (activeSince) {
+            const dur = Math.floor((e.timestamp.getTime() - activeSince.getTime()) / 1000);
+            allSessions.push({ clockIn: activeSince, clockOut: e.timestamp, duration: dur });
+          }
+          activeSince = e.timestamp;
+        } else if (e.type === 'CLOCK_OUT' && activeSince) {
+          const duration = Math.floor((e.timestamp.getTime() - activeSince.getTime()) / 1000);
+          allSessions.push({ clockIn: activeSince, clockOut: e.timestamp, duration });
+          activeSince = null;
+        }
+      }
+      // Only the genuinely last unclosed clock-in counts as currently active
+      if (activeSince) {
+        const duration = Math.floor((Date.now() - activeSince.getTime()) / 1000);
+        allSessions.push({ clockIn: activeSince, clockOut: null, duration });
       }
 
-      const days = Object.entries(byDate).map(([date, events]) => {
-        const sessions: { clockIn: string; clockOut: string | null; duration: number }[] = [];
-        let totalSeconds = 0;
-        let activeSince: Date | null = null;
+      // Attribute each session to its CLOCK-IN date
+      const byDate: Record<string, Sess[]> = {};
+      for (const s of allSessions) {
+        const key = s.clockIn.toISOString().split('T')[0];
+        if (!byDate[key]) byDate[key] = [];
+        byDate[key].push(s);
+      }
 
-        for (const e of events) {
-          if (e.type === 'CLOCK_IN') {
-            activeSince = e.timestamp;
-          } else if (e.type === 'CLOCK_OUT' && activeSince) {
-            const duration = Math.floor((e.timestamp.getTime() - activeSince.getTime()) / 1000);
-            totalSeconds += duration;
-            sessions.push({ clockIn: activeSince.toISOString(), clockOut: e.timestamp.toISOString(), duration });
-            activeSince = null;
-          }
-        }
-        if (activeSince) {
-          const duration = Math.floor((Date.now() - activeSince.getTime()) / 1000);
-          totalSeconds += duration;
-          sessions.push({ clockIn: activeSince.toISOString(), clockOut: null, duration });
-        }
-
+      const days = Object.entries(byDate).map(([date, sessions]) => {
+        const totalSeconds = sessions.reduce((sum, s) => sum + s.duration, 0);
         return {
           date,
-          sessions,
+          sessions: sessions.map(s => ({
+            clockIn: s.clockIn.toISOString(),
+            clockOut: s.clockOut ? s.clockOut.toISOString() : null,
+            duration: s.duration,
+          })),
           totalSeconds,
-          firstClockIn: sessions[0]?.clockIn || null,
-          lastClockOut: sessions[sessions.length - 1]?.clockOut || null,
+          firstClockIn: sessions[0]?.clockIn.toISOString() || null,
+          lastClockOut: sessions[sessions.length - 1]?.clockOut?.toISOString() || null,
         };
       });
 
