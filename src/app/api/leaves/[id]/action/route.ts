@@ -36,6 +36,15 @@ export async function PATCH(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
+    // 🔒 Prevent double-action: if already in the requested state, skip balance change
+    if (leave.status === status) {
+      return NextResponse.json({
+        updated: leave,
+        message: `Leave already ${status.toLowerCase()}`,
+        skipped: true,
+      });
+    }
+
     // Find admin user by email to get correct DB id
     const adminUser = await prisma.user.findUnique({
       where: { email: user!.email },
@@ -49,7 +58,8 @@ export async function PATCH(
       },
     });
 
-    if (status === 'APPROVED' && leave.type !== 'UNPAID') {
+    // Only deduct when moving FROM non-approved INTO approved (not re-approving)
+    if (status === 'APPROVED' && leave.status !== 'APPROVED' && leave.type !== 'UNPAID') {
       const fullDays =
         Math.ceil(
           (new Date(leave.toDate).getTime() -

@@ -24,14 +24,19 @@ export async function PATCH(req: NextRequest) {
   const leaveReq = await prisma.leaveRequest.findUnique({ where: { id: requestId } });
   if (!leaveReq) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+  // 🔒 Prevent double-action: skip if already in requested state
+  if (leaveReq.status === status) {
+    return NextResponse.json({ success: true, updated: leaveReq, skipped: true });
+  }
+
   // Update request status
   const updated = await prisma.leaveRequest.update({
     where: { id: requestId },
     data: { status }
   });
 
-  // If approved, deduct from balance (half-day = 0.5)
-  if (status === 'APPROVED') {
+  // Only deduct when moving FROM non-approved INTO approved
+  if (status === 'APPROVED' && leaveReq.status !== 'APPROVED') {
     const fullDays = Math.ceil(
       (new Date(leaveReq.toDate).getTime() - new Date(leaveReq.fromDate).getTime())
       / (1000 * 60 * 60 * 24)
