@@ -419,6 +419,22 @@ export default function ClockPage() {
   const [reportData, setReportData] = useState<any>(null);
   const [reportLoading, setReportLoading] = useState(false);
 
+  // Day-detail popup (admin clicks a date row)
+  const [selectedDay, setSelectedDay] = useState<{ emp: any; day: any } | null>(null);
+  const [dayDetail, setDayDetail] = useState<any>(null);
+  const [dayDetailLoading, setDayDetailLoading] = useState(false);
+
+  const openDayDetail = async (emp: any, day: any) => {
+    setSelectedDay({ emp, day });
+    setDayDetail(null);
+    setDayDetailLoading(true);
+    try {
+      const res = await fetch(`/api/admin/activity?userId=${emp.userId}&date=${day.date}`);
+      setDayDetail(await res.json());
+    } catch (e) { console.error(e); }
+    finally { setDayDetailLoading(false); }
+  };
+
   const fetchReport = async () => {
     setReportLoading(true);
     try {
@@ -735,8 +751,12 @@ export default function ClockPage() {
                           const dateLabel = new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
                           const metTarget = day.totalSeconds >= 8 * 3600;
                           return (
-                            <div key={day.date} className="grid grid-cols-4 px-5 py-3 hover:bg-[var(--surface2)] transition-colors items-center">
-                              <div className="text-[12px] font-semibold text-[var(--text)]">{dateLabel}</div>
+                            <div key={day.date} onClick={() => openDayDetail(emp, day)}
+                              className="grid grid-cols-4 px-5 py-3 hover:bg-[var(--surface2)] transition-colors items-center cursor-pointer">
+                              <div className="text-[12px] font-semibold text-[var(--text)] flex items-center gap-1.5">
+                                {dateLabel}
+                                <span className="text-[9px] text-[var(--orange)] opacity-0 group-hover:opacity-100">▸</span>
+                              </div>
                               <div className="flex items-center gap-1.5 text-[12px] font-semibold text-emerald-600">
                                 <LogIn size={11} />
                                 {day.firstClockIn ? fmtT(day.firstClockIn) : <span className="text-[var(--subtle)]">—</span>}
@@ -756,6 +776,16 @@ export default function ClockPage() {
                   ))
                 )}
               </div>
+            )}
+
+            {selectedDay && (
+              <DayDetailModal
+                emp={selectedDay.emp}
+                day={selectedDay.day}
+                detail={dayDetail}
+                loading={dayDetailLoading}
+                onClose={() => { setSelectedDay(null); setDayDetail(null); }}
+              />
             )}
           </div>
         )}
@@ -1016,6 +1046,101 @@ export default function ClockPage() {
                     )}
                   </>
                 ) : null}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Day Detail Popup (admin clicks a date) ──
+function DayDetailModal({ emp, day, detail, loading, onClose }: any) {
+  const fmtT = (d: string) => new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const fmtS = (s: number) => { if (!s || s <= 0) return '0m'; const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m`; };
+  const dateLabel = new Date(day.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="relative bg-white rounded-2xl shadow-2xl border border-[var(--border)] w-full max-w-lg max-h-[88vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between dart-gradient">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-[12px] font-bold text-white">
+              {emp.avatar || emp.name?.slice(0, 2).toUpperCase()}
+            </div>
+            <div>
+              <div className="text-[14px] font-bold text-white">{emp.name}</div>
+              <div className="text-[11px] text-white/80">{dateLabel}</div>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-white/80 hover:text-white"><X size={20} /></button>
+        </div>
+
+        <div className="overflow-y-auto p-5 space-y-4">
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { label: 'Work', value: fmtS(day.totalSeconds), color: '#10b981' },
+              { label: 'Break', value: fmtS(detail?.totalBreakSeconds || 0), color: '#f59e0b' },
+              { label: 'Away', value: fmtS(detail?.totalAwaySeconds || 0), color: '#8b5cf6' },
+              { label: 'Idle', value: fmtS(detail?.totalIdleSeconds || 0), color: '#ef4444' },
+            ].map(s => (
+              <div key={s.label} className="bg-[var(--surface2)] rounded-xl p-3 text-center">
+                <div className="text-[15px] font-black" style={{ color: s.color }}>{s.value}</div>
+                <div className="text-[9px] font-bold text-[var(--muted)] uppercase tracking-wider mt-0.5">{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <div className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider mb-2">🕐 Clock Sessions</div>
+            <div className="space-y-1.5">
+              {day.sessions?.length ? day.sessions.map((s: any, i: number) => (
+                <div key={i} className="flex items-center justify-between bg-[var(--surface2)] rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2 text-[12px]">
+                    <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold"><LogIn size={11} />{fmtT(s.clockIn)}</span>
+                    <span className="text-[var(--subtle)]">→</span>
+                    {s.clockOut
+                      ? <span className="inline-flex items-center gap-1 text-red-500 font-semibold"><LogOut size={11} />{fmtT(s.clockOut)}</span>
+                      : <span className="text-[10px] text-emerald-600 font-bold animate-pulse">● Active</span>}
+                  </div>
+                  <span className="text-[12px] font-bold text-[var(--text)]">{fmtS(s.duration)}</span>
+                </div>
+              )) : <div className="text-[12px] text-[var(--muted)] text-center py-2">No sessions</div>}
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="text-[12px] text-[var(--muted)] text-center py-3">Loading details...</div>
+          ) : detail?.idleLogs?.length > 0 && (
+            <div>
+              <div className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider mb-2">⏸ Idle Periods</div>
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                {detail.idleLogs.map((log: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between bg-red-50 rounded-lg px-3 py-1.5">
+                    <span className="text-[12px] text-[var(--text-soft)]">
+                      {new Date(log.idleFrom).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      {' → '}
+                      {new Date(log.idleTo).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                    </span>
+                    <span className="text-[12px] font-bold text-red-500">{fmtS(log.seconds)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!loading && detail?.byApp?.length > 0 && (
+            <div>
+              <div className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider mb-2">📱 Top Apps</div>
+              <div className="space-y-1.5">
+                {detail.byApp.slice(0, 5).map((a: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between bg-[var(--surface2)] rounded-lg px-3 py-1.5">
+                    <span className="text-[12px] font-semibold text-[var(--text)]">{a.appName}</span>
+                    <span className="text-[12px] font-bold text-[var(--muted)]">{fmtS(a.seconds)}</span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
