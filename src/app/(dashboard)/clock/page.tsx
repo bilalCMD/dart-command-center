@@ -779,7 +779,7 @@ export default function ClockPage() {
             )}
 
             {selectedDay && (
-              <DayDetailModal
+              <AdminDayDetailModal
                 emp={selectedDay.emp}
                 day={selectedDay.day}
                 detail={dayDetail}
@@ -1055,8 +1055,8 @@ export default function ClockPage() {
   );
 }
 
-// ── Day Detail Popup (admin clicks a date) ──
-function DayDetailModal({ emp, day, detail, loading, onClose }: any) {
+// ── Admin Day Detail Popup (admin clicks a date in report) ──
+function AdminDayDetailModal({ emp, day, detail, loading, onClose }: any) {
   const fmtT = (d: string) => new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   const fmtS = (s: number) => { if (!s || s <= 0) return '0m'; const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m`; };
   const dateLabel = new Date(day.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
