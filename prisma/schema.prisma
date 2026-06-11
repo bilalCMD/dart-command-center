@@ -26,6 +26,7 @@ model User {
   jobTitle      String?
   division      String?
   shift         String?
+  dailyTargetHours Float  @default(8)   // per-day working target; <8 = part-timer
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

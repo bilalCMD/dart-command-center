@@ -731,7 +731,14 @@ export default function ClockPage() {
                           {emp.avatar || emp.name?.slice(0, 2).toUpperCase()}
                         </div>
                         <div>
-                          <div className="text-[13px] font-bold text-[var(--text)]">{emp.name}</div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[13px] font-bold text-[var(--text)]">{emp.name}</span>
+                            {emp.dailyTargetHours && emp.dailyTargetHours < 8 && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 uppercase tracking-wider">
+                                Part-timer · {emp.dailyTargetHours}h
+                              </span>
+                            )}
+                          </div>
                           <div className="text-[10px] text-[var(--muted)]">{emp.email}</div>
                         </div>
                         <div className="ml-auto text-right">
@@ -749,7 +756,8 @@ export default function ClockPage() {
                           const fmtT = (d: string) => new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
                           const fmtS = (s: number) => { const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m`; };
                           const dateLabel = new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-                          const metTarget = day.totalSeconds >= 8 * 3600;
+                          const targetSeconds = (emp.dailyTargetHours ?? 8) * 3600;
+                          const metTarget = day.totalSeconds >= targetSeconds;
                           return (
                             <div key={day.date} onClick={() => openDayDetail(emp, day)}
                               className="grid grid-cols-4 px-5 py-3 hover:bg-[var(--surface2)] transition-colors items-center cursor-pointer">
@@ -763,9 +771,14 @@ export default function ClockPage() {
                               </div>
                               <div className="flex items-center gap-1.5 text-[12px] font-semibold text-red-500">
                                 <LogOut size={11} />
-                                {day.lastClockOut ? fmtT(day.lastClockOut) : <span className="text-[10px] text-emerald-600 font-bold animate-pulse">● Active</span>}
+                                {day.isActive
+                                  ? <span className="text-[10px] text-emerald-600 font-bold animate-pulse">● Active</span>
+                                  : day.estimated
+                                    ? <span className="text-[10px] text-amber-600 font-bold" title="No clock-out — estimated from average">⚠ No clock-out</span>
+                                    : day.lastClockOut ? fmtT(day.lastClockOut) : <span className="text-[var(--subtle)]">—</span>}
                               </div>
                               <div className={`text-[12px] font-bold ${metTarget ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                {day.estimated && <span className="text-[var(--muted)]" title="Estimated from average (forgotten clock-out)">~</span>}
                                 {fmtS(day.totalSeconds)}{metTarget && <span className="ml-1 text-[9px]">✓</span>}
                               </div>
                             </div>

@@ -20,6 +20,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Salary not set for this employee" }, { status: 400 });
     }
 
+    // Per-user daily working target (part-timers < 8h). Drives rates + thresholds.
+    const employee = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { dailyTargetHours: true },
+    });
+    const targetHours = employee?.dailyTargetHours ?? 8;
+
     const [year, mon] = month.split("-").map(Number);
     const startDate = new Date(year, mon - 1, 1);
     const endDate = new Date(year, mon, 0, 23, 59, 59);
@@ -33,8 +40,8 @@ export async function POST(req: NextRequest) {
       d.setDate(d.getDate() + 1);
     }
 
-    // Per minute rates
-    const perMinuteNormal = salaryRecord.monthlySalary / workingDays / 8 / 60;
+    // Per minute rates (scaled to the employee's own daily target)
+    const perMinuteNormal = salaryRecord.monthlySalary / workingDays / targetHours / 60;
     const perMinuteBonus = perMinuteNormal * 3;
 
     // Approved leaves
@@ -98,9 +105,10 @@ export async function POST(req: NextRequest) {
     const presentDays = dayMap.size;
     const absentDays = Math.max(0, workingDays - presentDays - leaveDays);
 
-    // Bonus and deductions per day
-    const BONUS_THRESHOLD = 8.5 * 3600;
-    const DEDUCT_THRESHOLD = 7 * 3600;
+    // Bonus and deductions per day (relative to the employee's target).
+    // Matches the original 8h behaviour exactly: bonus at target+0.5h, deduct below target-1h.
+    const BONUS_THRESHOLD = (targetHours + 0.5) * 3600;
+    const DEDUCT_THRESHOLD = Math.max(0, targetHours - 1) * 3600;
 
     let totalBonusAmount = 0;
     let totalShortDeduction = 0;
